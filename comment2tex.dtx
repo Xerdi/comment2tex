@@ -1,0 +1,320 @@
+% \iffalse meta-comment
+%
+% comment2tex.dtx
+% Copyright (C) 2026 Erik Nijenhuis.
+%
+% This work may be distributed and/or modified under the conditions of
+% the LaTeX Project Public License, either version 1.3c of this license
+% or (at your option) any later version.
+%
+%<*driver>
+\documentclass{ltxdoc}
+\usepackage{listings}
+\usepackage{comment2tex}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,
+  breaklines=true,showstringspaces=false}
+\EnableCrossrefs
+\CodelineIndex
+\begin{document}
+  \DocInput{comment2tex.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{The \textsf{comment2tex} package}
+% \author{Erik Nijenhuis}
+% \date{2026/06/07 \quad v1.0}
+% \maketitle
+%
+% \begin{abstract}
+% \textsf{comment2tex} typesets a source file that carries its documentation in
+% special comments: the comments become ordinary \LaTeX, the rest becomes a
+% listing.  It ships a Lua converter and two \TeX\ wrappers --- one for
+% \LaTeX/Lua\LaTeX\ and one for plain \TeX\ --- both providing \cs{includebash}
+% and \cs{includelua}.
+% \end{abstract}
+%
+% \tableofcontents
+%
+% \section{Introduction}
+%
+% A source file may document itself: lines beginning with a chosen
+% \emph{doc-comment} prefix are prose, everything else is code.  For Bash the
+% prefix is a double hash (\texttt{\#\#}); for Lua it is a triple dash
+% (\texttt{-{}-{}-}).  The converter \texttt{comment2tex.lua} turns such a file
+% into \LaTeX: doc lines are emitted verbatim (minus the prefix) and runs of
+% code are wrapped in a listing.
+%
+% This package is the \TeX\ front end.  \cs{includebash} and \cs{includelua}
+% take a source file, run it through the converter, and input the result, so a
+% document can pull in annotated sources without a manual build step.
+%
+% \section{Usage}
+%
+% \DescribeMacro{\includebash}
+% \DescribeMacro{\includelua}
+% \cs{includebash}\marg{file} typesets a Bash source (doc prefix \texttt{\#\#});
+% \cs{includelua}\marg{file} typesets a Lua source (doc prefix
+% \texttt{-{}-{}-}).  Both derive an output name by replacing the file's
+% extension with \texttt{.c2t.tex}, generate that file with the appropriate
+% \emph{style} and \emph{wrapper}, and \cs{input} it.  The \meta{file} must
+% carry a single extension.
+%
+% The \LaTeX\ wrapper uses the \texttt{lstlisting} wrapper, so load and
+% configure \textsf{listings} (this package does that for you with a plain
+% default \cs{lstset}).  The plain \TeX\ wrapper uses a built-in verbatim
+% environment instead, since \textsf{listings} is \LaTeX-only.
+%
+% \section{Engines and use cases}
+%
+% How the conversion happens depends on the engine.
+%
+% \begin{description}
+% \item[Lua\LaTeX\ (recommended).] Lua\TeX\ embeds Lua, so the wrapper loads
+%   \texttt{comment2tex.lua} as a library and converts \emph{in process} through
+%   \cs{directlua}.  No shell escape, no separate run: just
+%   \texttt{lualatex document}.
+% \item[pdf\LaTeX\ with shell escape.] pdf\TeX\ cannot run Lua, so with
+%   \texttt{-{}-shell-escape} the wrapper calls \texttt{texlua comment2tex.lua}
+%   through \cs{write18} to generate the fragment, then inputs it.  Run
+%   \texttt{pdflatex -shell-escape document}.
+% \item[pdf\LaTeX, separate run (no shell escape).] Generate the fragments ahead
+%   of time and let a normal run merely \cs{input} them.  For each source run
+%   \texttt{texlua comment2tex.lua -{}-style \meta{style} -o \meta{base}.c2t.tex
+%   \meta{file}} (or \texttt{make}), then \texttt{pdflatex document}.  If a
+%   required fragment is missing the package raises an error telling you which
+%   command to run.
+% \item[plain \TeX.] \texttt{comment2tex.tex} provides the same two macros for
+%   plain \TeX.  Under \texttt{luatex} it converts in process; under
+%   \texttt{pdftex}/\texttt{tex} it uses the same shell-escape or separate-run
+%   fallback.
+% \end{description}
+%
+% \begin{center}
+% \begin{tabular}{lll}
+% \hline
+% Engine & In process & Otherwise \\
+% \hline
+% Lua\LaTeX           & yes (\cs{directlua}) & --- \\
+% pdf\LaTeX           & no  & \texttt{-shell-escape} or separate run \\
+% plain \texttt{luatex}        & yes & --- \\
+% plain \texttt{pdftex}/\texttt{tex} & no  & \texttt{-shell-escape} or separate run \\
+% \hline
+% \end{tabular}
+% \end{center}
+%
+% In every case the generated file is \meta{base}\texttt{.c2t.tex}, so the
+% in-process, shell-escape and separate-run routes are interchangeable.
+%
+% \section{The converter, by example}
+%
+% Because the converter is itself a literate Lua file, the cleanest
+% demonstration is to let it document itself.  The remainder of this section is
+% produced by \cs{includelua}\marg{comment2tex.lua} --- the generated documentation
+% demonstrates the converter's functionality under Lua\LaTeX.
+%
+% \includelua{comment2tex.lua}
+%
+% \section{Implementation}
+%
+% \subsection{The \LaTeX\ wrapper}
+%
+% \changes{v1.0}{2026/06/07}{Initial version}
+%
+% Announce the package and load \textsf{listings} with a neutral default style.
+%    \begin{macrocode}
+%<*package>
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{comment2tex}
+  [2026/06/07 v1.0 Include annotated source files as LaTeX listings]
+\RequirePackage{listings}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,
+  breaklines=true,showstringspaces=false}
+%    \end{macrocode}
+%
+% The name of the converter, overridable before loading if it is not on the
+% current directory or \TeX\ tree.
+%    \begin{macrocode}
+\providecommand\ctxscript{comment2tex.lua}
+%    \end{macrocode}
+%
+% Under LuaTeX, load the converter once into the global \texttt{comment2tex},
+% locating it through \texttt{kpse}.
+%    \begin{macrocode}
+\ifdefined\directlua
+  \directlua{
+    if not comment2tex then
+      local f = kpse.find_file("comment2tex.lua","lua")
+        or kpse.find_file("comment2tex.lua") or "comment2tex.lua"
+      comment2tex = assert(loadfile(f))("comment2tex")
+    end
+  }
+\fi
+%    \end{macrocode}
+%
+% \begin{macro}{\ctx@include}
+% Strip the extension, build the output name, generate it the best way the
+% engine allows, then input it.  \cs{ctx@strip} keeps everything before the
+% first dot.
+%    \begin{macrocode}
+\def\ctx@strip#1.#2\ctx@stop{#1}
+\newcommand\ctx@include[2]{%
+  \edef\ctx@in{#2}%
+  \edef\ctx@base{\ctx@strip#2\ctx@stop}%
+  \edef\ctx@out{\ctx@base.c2t.tex}%
+  \ifdefined\directlua
+    \directlua{comment2tex.write("#1","lstlisting",
+      "\luaescapestring{\ctx@in}","\luaescapestring{\ctx@out}")}%
+  \else
+    \ifdefined\pdfshellescape
+      \ifnum\pdfshellescape>0\relax
+        \immediate\write18{texlua \ctxscript\space
+          --style #1 --wrapper lstlisting -o \ctx@out\space \ctx@in}%
+      \fi
+    \fi
+  \fi
+  \IfFileExists{\ctx@out}{\input{\ctx@out}}{%
+    \PackageError{comment2tex}{Converted file \ctx@out\space not found}%
+      {Use LuaLaTeX, run pdflatex with -shell-escape, or pre-build it:^^J%
+       texlua \ctxscript\space --style #1 -o \ctx@out\space \ctx@in}}%
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\includebash}
+% \begin{macro}{\includelua}
+% The two public entry points fix the style.
+%    \begin{macrocode}
+\newcommand\includebash[1]{\ctx@include{bash}{#1}}
+\newcommand\includelua[1]{\ctx@include{lua}{#1}}
+%</package>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{The plain \TeX\ wrapper}
+%
+% Plain \TeX\ has neither \textsf{listings} nor the \LaTeX\ file helpers, so the
+% wrapper carries its own verbatim listing and uses primitive file tests.
+% Control-sequence names are letters only (no digits, no \texttt{@}).
+%
+% Locate and load the converter under Lua\TeX, exactly as the package does.
+%    \begin{macrocode}
+%<*plain>
+\def\ctxscript{comment2tex.lua}
+\expandafter\ifx\csname directlua\endcsname\relax\else
+  \directlua{
+    if not comment2tex then
+      local f = kpse.find_file("comment2tex.lua","lua")
+        or kpse.find_file("comment2tex.lua") or "comment2tex.lua"
+      comment2tex = assert(loadfile(f))("comment2tex")
+    end
+  }
+\fi
+%    \end{macrocode}
+%
+% \begin{macro}{\ctxendmark}
+% The end-of-listing sentinel, stored as a string of category-12 characters so
+% it can be compared against a verbatim line.  A temporary escape character
+% (\verb+|+) lets us define it while the backslash is category~12 (``other'').
+%    \begin{macrocode}
+\begingroup
+\catcode`\|=0 \catcode`\\=12
+|gdef|ctxendmark{\endctxlisting}%
+|endgroup
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ctxuncatcode}
+% Make the usual specials (and the space) category 12, the verbatim regime.
+%    \begin{macrocode}
+\def\ctxuncatcode{\def\do##1{\catcode`##1=12 }\dospecials}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ctxlisting}
+% \begin{macro}{\ctxgrab}
+% \cs{ctxlisting} (emitted by the converter as \verb+\ctxlisting%+, the trailing
+% comment swallowing its own line end) opens a group, switches to the verbatim
+% regime with an active end-of-line, and starts grabbing lines.  \cs{ctxgrab}
+% collects one line up to the active \verb+^^M+ and hands it on.  Every physical
+% line in this group ends with \verb+%+ so no stray active end-of-line leaks
+% into the definitions.
+%    \begin{macrocode}
+\begingroup
+\catcode`\^^M=\active%
+\gdef\ctxlisting{%
+  \par\begingroup%
+  \ctxuncatcode%
+  \parindent=0pt \tt%
+  \catcode`\^^M=\active%
+  \ctxgrab}%
+\gdef\ctxgrab#1^^M{\ctxcheckend{#1}}%
+\endgroup
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\ctxcheckend}
+% Compare the grabbed line with the sentinel: if equal, finish; otherwise
+% typeset it and loop.  \cs{ctxnext} defers the recursion until after \cs{fi}.
+%    \begin{macrocode}
+\def\ctxcheckend#1{%
+  \def\ctxtmp{#1}%
+  \ifx\ctxtmp\ctxendmark
+    \let\ctxnext\ctxfinish
+  \else
+    \leavevmode#1\par
+    \let\ctxnext\ctxgrab
+  \fi
+  \ctxnext}
+\def\ctxfinish{\par\endgroup}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ctxinclude}
+% Mirror of the \LaTeX\ \cs{ctx@include}: derive the output name, generate it in
+% process (Lua\TeX) or via shell escape (pdf\TeX), then input it, erroring if it
+% is still missing.
+%    \begin{macrocode}
+\def\ctxstrip#1.#2\ctxstop{#1}
+\def\ctxinclude#1#2{%
+  \edef\ctxin{#2}%
+  \edef\ctxbase{\ctxstrip#2\ctxstop}%
+  \edef\ctxout{\ctxbase.c2t.tex}%
+  \expandafter\ifx\csname directlua\endcsname\relax
+    \expandafter\ifx\csname pdfshellescape\endcsname\relax\else
+      \ifnum\pdfshellescape>0
+        \immediate\write18{texlua \ctxscript\space
+          --style #1 --wrapper plain -o \ctxout\space \ctxin}%
+      \fi
+    \fi
+  \else
+    \directlua{comment2tex.write("#1","plain",
+      "\luaescapestring{\ctxin}","\luaescapestring{\ctxout}")}%
+  \fi
+  \openin0=\ctxout\relax
+  \ifeof0
+    \closein0
+    \errmessage{comment2tex: \ctxout\space not found
+      (use luatex, -shell-escape, or pre-run texlua)}%
+  \else
+    \closein0
+    \input \ctxout\relax
+  \fi}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\includebash}
+% \begin{macro}{\includelua}
+% The public entry points.
+%    \begin{macrocode}
+\def\includebash{\ctxinclude{bash}}
+\def\includelua{\ctxinclude{lua}}
+%</plain>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \Finale
+\endinput

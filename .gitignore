@@ -1,0 +1,23 @@
+# Generated wrappers (extracted from comment2tex.dtx via comment2tex.ins)
+/comment2tex.sty
+/comment2tex.tex
+
+# Converter output fragments
+*.c2t.tex
+
+# LaTeX build artifacts
+*.aux
+*.toc
+*.log
+*.idx
+*.ind
+*.ilg
+*.glo
+*.out
+*.hd
+*.fdb_latexmk
+*.fls
+comment2tex.pdf
+
+# IDE
+/.idea/

@@ -1,0 +1,43 @@
+\input docstrip.tex
+\keepsilent
+\askforoverwritefalse
+
+\usedir{tex}
+
+\preamble
+
+This is a generated file.
+
+comment2tex --- include annotated source files as LaTeX listings.
+
+Copyright (C) 2026 Erik Nijenhuis.
+
+This work may be distributed and/or modified under the conditions of the
+LaTeX Project Public License, either version 1.3c of this license or (at
+your option) any later version.
+
+\endpreamble
+
+\generate{%
+  \file{comment2tex.sty}{\from{comment2tex.dtx}{package}}%
+  \file{comment2tex.tex}{\from{comment2tex.dtx}{plain}}%
+}
+
+\obeyspaces
+\Msg{*************************************************************}
+\Msg{*                                                           *}
+\Msg{* To finish the installation you have to move the following *}
+\Msg{* files into a directory searched by TeX:                   *}
+\Msg{*                                                           *}
+\Msg{*     comment2tex.sty  (LaTeX / LuaLaTeX wrapper)           *}
+\Msg{*     comment2tex.tex  (plain TeX wrapper)                  *}
+\Msg{*     comment2tex.lua  (the converter, shipped as-is)       *}
+\Msg{*                                                           *}
+\Msg{* To produce the documentation run (LuaLaTeX is required so *}
+\Msg{* the includelua demonstration converts in process):        *}
+\Msg{*                                                           *}
+\Msg{*     lualatex comment2tex.dtx                              *}
+\Msg{*                                                           *}
+\Msg{*************************************************************}
+
+\endbatchfile
