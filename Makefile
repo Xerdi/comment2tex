@@ -26,10 +26,12 @@ README   = README.md
 LUA_SRC  = comment2tex.lua
 FRAGS    = $(LUA_SRC:.lua=.c2t.tex)
 
-# Files shipped in the CTAN upload: hand-written sources, the extracted wrappers,
-# and the built docs.  comment2tex.lua is shipped separately by the package rule,
-# stripped of its doc-comments (see below), so it is not listed here.
-DISTFILES = $(DTX) $(INS) $(WRAPPERS) $(README) $(DOC)
+# Files shipped in the CTAN upload: hand-written sources and the built docs.  The
+# wrappers (comment2tex.sty, comment2tex.tex) are generated from the .dtx via the
+# .ins, so CTAN regenerates them and they are not shipped.  comment2tex.lua is
+# shipped separately by the package rule, stripped of its doc-comments (see
+# below), so it is not listed here either.
+DISTFILES = $(DTX) $(INS) $(README) $(DOC)
 
 .PHONY: all wrappers doc test frags package clean help
 
