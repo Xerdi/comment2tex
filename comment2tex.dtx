@@ -11,6 +11,7 @@
 \documentclass{ltxdoc}
 \usepackage{listings}
 \usepackage{comment2tex}
+\GetFileInfo{comment2tex.sty}
 \lstset{basicstyle=\ttfamily\small,columns=fullflexible,
   breaklines=true,showstringspaces=false}
 \EnableCrossrefs
@@ -23,7 +24,7 @@
 %
 % \title{The \textsf{comment2tex} package}
 % \author{Erik Nijenhuis}
-% \date{2026/06/07 \quad v1.0}
+% \date{\filedate \quad \fileversion}
 % \maketitle
 %
 % \begin{abstract}
@@ -119,14 +120,14 @@
 %
 % \subsection{The \LaTeX\ wrapper}
 %
-% \changes{v1.0}{2026/06/07}{Initial version}
+% \changes{v1.0}{2026/06/08}{Initial version}
 %
 % Announce the package and load \textsf{listings} with a neutral default style.
 %    \begin{macrocode}
 %<*package>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{comment2tex}
-  [2026/06/07 v1.0 Include annotated source files as LaTeX listings]
+  [2026/06/08 v1.0 Include annotated source files as LaTeX listings]
 \RequirePackage{listings}
 \lstset{basicstyle=\ttfamily\small,columns=fullflexible,
   breaklines=true,showstringspaces=false}

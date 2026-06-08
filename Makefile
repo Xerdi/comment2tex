@@ -14,18 +14,24 @@ C2T      = $(TEXLUA) comment2tex.lua
 WATCH ?=
 PVC   = $(if $(WATCH),--pvc,)
 
+NAME     = comment2tex
 DTX      = comment2tex.dtx
 INS      = comment2tex.ins
 WRAPPERS = comment2tex.sty comment2tex.tex
 DOC      = comment2tex.pdf
+README   = README.md
 
-# Literate sources grouped by doc-comment style ("##" for Bash, "---" for Lua),
-# converted to standalone fragments named to match the package convention.
-BASH_SRC = bash2tex.sh lua2tex.sh
+# Literate sources converted to standalone fragments named to match the package
+# convention.  comment2tex.lua documents itself with the "---" doc-comment style.
 LUA_SRC  = comment2tex.lua
-FRAGS    = $(BASH_SRC:.sh=.c2t.tex) $(LUA_SRC:.lua=.c2t.tex)
+FRAGS    = $(LUA_SRC:.lua=.c2t.tex)
 
-.PHONY: all wrappers doc test frags clean help
+# Files shipped in the CTAN upload: hand-written sources, the extracted wrappers,
+# and the built docs.  comment2tex.lua is shipped separately by the package rule,
+# stripped of its doc-comments (see below), so it is not listed here.
+DISTFILES = $(DTX) $(INS) $(WRAPPERS) $(README) $(DOC)
+
+.PHONY: all wrappers doc test frags package clean help
 
 all: doc
 
@@ -47,19 +53,29 @@ test:
 ## frags: convert the literate sources to standalone .c2t.tex fragments.
 frags: $(FRAGS)
 
-# Bash sources use the "##" doc-comment style.
-%.c2t.tex: %.sh comment2tex.lua
-	$(C2T) --style bash -o $@ $<
-
 # Lua sources use the "---" doc-comment style.
 %.c2t.tex: %.lua comment2tex.lua
 	$(C2T) --style lua -o $@ $<
 
+## package: build a CTAN-ready zip (sources + PDF under a comment2tex/ dir).
+##          The shipped comment2tex.lua has its "---" doc-comments stripped so its
+##          line numbers match the listing numbers in the documentation.
+package: $(NAME).zip
+$(NAME).zip: $(DISTFILES) $(LUA_SRC)
+	$(RM) -r $(NAME) $(NAME).zip
+	mkdir $(NAME)
+	cp $(DISTFILES) $(NAME)/
+	sed '/^---/d' $(LUA_SRC) > $(NAME)/$(LUA_SRC)
+	zip -r $(NAME).zip $(NAME)
+	$(RM) -r $(NAME)
+
 ## clean: remove generated files.
 clean:
+	$(RM) -r $(NAME) $(NAME).zip
 	$(RM) $(WRAPPERS) $(FRAGS) $(DOC) *.c2t.tex \
 	  comment2tex.aux comment2tex.toc comment2tex.log \
-	  comment2tex.idx comment2tex.glo comment2tex.out comment2tex.hd
+	  comment2tex.idx comment2tex.ilg comment2tex.ind comment2tex.glo \
+	  comment2tex.out comment2tex.hd comment2tex.fls comment2tex.fdb_latexmk
 
 ## help: list available targets.
 help:
@@ -68,5 +84,6 @@ help:
 	@echo "  doc        typeset comment2tex.pdf with LuaLaTeX (WATCH=1 to keep rebuilding)"
 	@echo "  wrappers   extract comment2tex.sty and comment2tex.tex"
 	@echo "  frags      convert literate sources to .c2t.tex fragments"
+	@echo "  package    build a CTAN-ready zip (comment2tex.zip)"
 	@echo "  test       run the cross-engine test suite"
 	@echo "  clean      remove generated files"

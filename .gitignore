@@ -18,6 +18,7 @@
 *.fdb_latexmk
 *.fls
 comment2tex.pdf
+comment2tex.zip
 
 # IDE
 /.idea/
