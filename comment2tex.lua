@@ -28,6 +28,7 @@ local M = {}
 M.styles = {
   bash = { comment = "##",  language = "bash" },
   lua  = { comment = "---", language = "{[5.3]Lua}" },
+  yaml = { comment = "##",  language = "yaml" },
 }
 
 --- The \texttt{lstlisting} wrapper targets \LaTeX\ (the \texttt{listings} package); the
@@ -72,7 +73,7 @@ end
 function M.resolve(o)
   local style = M.styles[o.style]
   if not style then
-    error("comment2tex: unknown style: " .. tostring(o.style) .. " (expected bash or lua)")
+    error("comment2tex: unknown style: " .. tostring(o.style) .. " (expected bash, lua or yaml)")
   end
   local wrapper = M.wrappers[o.wrapper]
   if not wrapper then
@@ -180,7 +181,7 @@ Usage: comment2tex.lua [options] <input>
 Convert a source file with embedded LaTeX doc-comments to LaTeX.
 
 Options:
-  -s, --style NAME       preset: bash (##) or lua (---)        [default: bash]
+  -s, --style NAME       preset: bash (##), lua (---) or yaml (##)  [default: bash]
   -w, --wrapper NAME     listing wrapper: lstlisting or plain  [default: lstlisting]
   -c, --comment PREFIX   doc-comment prefix marking a doc line
   -l, --language LANG    listing language for code blocks

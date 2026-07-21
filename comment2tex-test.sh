@@ -88,13 +88,48 @@ printf '%s\n' \
   'local x = 1' \
   'print(x)' \
   '--- Done.' > demo-lua.lua
+# YAML doc-comments are "##" -- ordinary YAML comments, so the fixture stays
+# valid YAML while the double-hash lines become prose.  The "---" document-start
+# marker is a code line: it exercises the path that a yaml language's literate
+# rules act on.
+printf '%s\n' \
+  '## Demonstration YAML source.' \
+  '## Double-hash lines become prose.' \
+  '---' \
+  'key: value' \
+  'list:' \
+  '  - a' \
+  '  - b' \
+  '## Done.' > demo-yaml.yml
 
+# Fallback path: no "yaml" language is defined anywhere (the suite runs under a
+# deliberately-empty TEXMFHOME, so no personal or system listings config leaks
+# in).  \includeyaml must install its own empty "yaml" language and typeset the
+# source under the default style rather than faulting on language=yaml.
 cat > doc-latex.tex <<'EOF'
 \documentclass{article}
 \usepackage{comment2tex}
 \begin{document}
 \includebash{demo-bash.sh}
 \includelua{demo-lua.lua}
+\includeyaml{demo-yaml.yml}
+\end{document}
+EOF
+
+# Present path: the document defines its own, self-contained "yaml" language
+# (no external package -- comment2tex has no dependency on any yaml highlighter).
+# \includeyaml must leave this definition untouched and use it.
+cat > doc-latex-yaml.tex <<'EOF'
+\documentclass{article}
+\usepackage{comment2tex}
+\lstdefinelanguage{yaml}{
+  comment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]",
+  literate={---}{{\bfseries-{}-{}-}}3
+}
+\begin{document}
+\includeyaml{demo-yaml.yml}
 \end{document}
 EOF
 
@@ -102,13 +137,15 @@ cat > doc-plain.tex <<'EOF'
 \input comment2tex.tex
 \includebash{demo-bash.sh}
 \includelua{demo-lua.lua}
+\includeyaml{demo-yaml.yml}
 \bye
 EOF
 
-clean_frags() { rm -f demo-bash.c2t.tex demo-lua.c2t.tex; }
+clean_frags() { rm -f demo-bash.c2t.tex demo-lua.c2t.tex demo-yaml.c2t.tex; }
 gen_frags() {  # gen_frags WRAPPER
   $C2T --style bash --wrapper "$1" -o demo-bash.c2t.tex demo-bash.sh &&
-  $C2T --style lua  --wrapper "$1" -o demo-lua.c2t.tex  demo-lua.lua
+  $C2T --style lua  --wrapper "$1" -o demo-lua.c2t.tex  demo-lua.lua &&
+  $C2T --style yaml --wrapper "$1" -o demo-yaml.c2t.tex demo-yaml.yml
 }
 
 # --------------------------------------------------------------------------
@@ -117,7 +154,8 @@ gen_frags() {  # gen_frags WRAPPER
 name="texlua CLI (lstlisting output)"
 if have texlua; then
   if $C2T --style bash demo-bash.sh | grep -q '\\begin{lstlisting}\[language=bash' &&
-     $C2T --style lua  demo-lua.lua  | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}'; then
+     $C2T --style lua  demo-lua.lua  | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}' &&
+     $C2T --style yaml demo-yaml.yml | grep -q '\\begin{lstlisting}\[language=yaml'; then
     log "PASS  $name"; pass=$((pass + 1))
   else
     log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
@@ -139,10 +177,16 @@ fi
 # --------------------------------------------------------------------------
 # 2. LaTeX wrapper
 # --------------------------------------------------------------------------
-name="LuaLaTeX in-process"
+name="LuaLaTeX in-process (yaml fallback, no language defined)"
 if have lualatex; then
   clean_frags
   run "$name" doc-latex.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex.tex
+else skip "lualatex not installed"; fi
+
+name="LuaLaTeX in-process (document-defined yaml language)"
+if have lualatex; then
+  rm -f demo-yaml.c2t.tex
+  run "$name" doc-latex-yaml.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-yaml.tex
 else skip "lualatex not installed"; fi
 
 name="pdfLaTeX -shell-escape"

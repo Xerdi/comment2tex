@@ -31,8 +31,8 @@
 % \textsf{comment2tex} typesets a source file that carries its documentation in
 % special comments: the comments become ordinary \LaTeX, the rest becomes a
 % listing.  It ships a Lua converter and two \TeX\ wrappers --- one for
-% \LaTeX/Lua\LaTeX\ and one for plain \TeX\ --- both providing \cs{includebash}
-% and \cs{includelua}.
+% \LaTeX/Lua\LaTeX\ and one for plain \TeX\ --- both providing \cs{includebash},
+% \cs{includelua} and \cs{includeyaml}.
 % \end{abstract}
 %
 % \tableofcontents
@@ -42,29 +42,43 @@
 % A source file may document itself: lines beginning with a chosen
 % \emph{doc-comment} prefix are prose, everything else is code.  For Bash the
 % prefix is a double hash (\texttt{\#\#}); for Lua it is a triple dash
-% (\texttt{-{}-{}-}).  The converter \texttt{comment2tex.lua} turns such a file
+% (\texttt{-{}-{}-}); for YAML it is again a double hash (\texttt{\#\#}, itself a
+% YAML comment).  The converter \texttt{comment2tex.lua} turns such a file
 % into \LaTeX: doc lines are emitted verbatim (minus the prefix) and runs of
 % code are wrapped in a listing.
 %
-% This package is the \TeX\ front end.  \cs{includebash} and \cs{includelua}
-% take a source file, run it through the converter, and input the result, so a
-% document can pull in annotated sources without a manual build step.
+% This package is the \TeX\ front end.  \cs{includebash}, \cs{includelua} and
+% \cs{includeyaml} take a source file, run it through the converter, and input
+% the result, so a document can pull in annotated sources without a manual build
+% step.
 %
 % \section{Usage}
 %
 % \DescribeMacro{\includebash}
 % \DescribeMacro{\includelua}
+% \DescribeMacro{\includeyaml}
 % \cs{includebash}\marg{file} typesets a Bash source (doc prefix \texttt{\#\#});
 % \cs{includelua}\marg{file} typesets a Lua source (doc prefix
-% \texttt{-{}-{}-}).  Both derive an output name by replacing the file's
+% \texttt{-{}-{}-}); \cs{includeyaml}\marg{file} typesets a YAML source (doc
+% prefix \texttt{\#\#}).  All three derive an output name by replacing the file's
 % extension with \texttt{.c2t.tex}, generate that file with the appropriate
 % \emph{style} and \emph{wrapper}, and \cs{input} it.  The \meta{file} must
 % carry a single extension.
 %
+% Because \texttt{\#\#} is an ordinary YAML comment, the double-hash doc lines
+% stay valid YAML: the annotated file remains loadable as-is, so \cs{includeyaml}
+% typesets the very file that ships --- no stripped copy, no risk of drift.
+%
 % The \LaTeX\ wrapper uses the \texttt{lstlisting} wrapper, so load and
 % configure \textsf{listings} (this package does that for you with a plain
-% default \cs{lstset}).  The plain \TeX\ wrapper uses a built-in verbatim
-% environment instead, since \textsf{listings} is \LaTeX-only.
+% default \cs{lstset}).  The Bash and Lua styles name \textsf{listings}' own
+% languages, but \texttt{listings} ships no \texttt{yaml} language.  This is
+% handled gracefully: if the document has not defined a \texttt{yaml} language,
+% \cs{includeyaml} installs an empty one, so the source typesets under the
+% default listing style (no YAML-specific highlighting) rather than faulting.
+% A document that \emph{does} define its own \texttt{yaml} language keeps it.
+% The plain \TeX\ wrapper uses a built-in verbatim environment instead, since
+% \textsf{listings} is \LaTeX-only.
 %
 % \section{Engines and use cases}
 %
@@ -121,13 +135,14 @@
 % \subsection{The \LaTeX\ wrapper}
 %
 % \changes{v1.0}{2026/06/08}{Initial version}
+% \changes{v1.1}{2026/07/01}{Add YAML style and \cs{includeyaml}}
 %
 % Announce the package and load \textsf{listings} with a neutral default style.
 %    \begin{macrocode}
 %<*package>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{comment2tex}
-  [2026/06/08 v1.0 Include annotated source files as LaTeX listings]
+  [2026/07/01 v1.1 Include annotated source files as LaTeX listings]
 \RequirePackage{listings}
 \lstset{basicstyle=\ttfamily\small,columns=fullflexible,
   breaklines=true,showstringspaces=false}
@@ -184,12 +199,24 @@
 %
 % \begin{macro}{\includebash}
 % \begin{macro}{\includelua}
-% The two public entry points fix the style.
+% \begin{macro}{\includeyaml}
+% The three public entry points fix the style.  \textsf{listings} provides the
+% \texttt{bash} and \texttt{Lua} languages itself, but ships no \texttt{yaml}
+% one, so \cs{includeyaml} first ensures a \texttt{yaml} language exists: if the
+% document has not defined one, \cs{ctx@ensureyaml} installs an \emph{empty}
+% language so the emitted \texttt{language=yaml} resolves to the default listing
+% style (no YAML-specific highlighting) instead of faulting.  The test peeks at
+% \textsf{listings}' own language store (\cs{lstlang@yaml\$}); a document that
+% defines its own \texttt{yaml} language is left untouched.
 %    \begin{macrocode}
+\newcommand\ctx@ensureyaml{%
+  \@ifundefined{\@lst lang@yaml$}{\lstdefinelanguage{yaml}{}}{}}
 \newcommand\includebash[1]{\ctx@include{bash}{#1}}
 \newcommand\includelua[1]{\ctx@include{lua}{#1}}
+\newcommand\includeyaml[1]{\ctx@ensureyaml\ctx@include{yaml}{#1}}
 %</package>
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -308,12 +335,15 @@
 %
 % \begin{macro}{\includebash}
 % \begin{macro}{\includelua}
+% \begin{macro}{\includeyaml}
 % The public entry points.
 %    \begin{macrocode}
 \def\includebash{\ctxinclude{bash}}
 \def\includelua{\ctxinclude{lua}}
+\def\includeyaml{\ctxinclude{yaml}}
 %</plain>
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
