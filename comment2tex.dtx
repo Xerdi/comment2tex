@@ -281,7 +281,18 @@ done
 % \subsection{The \LaTeX\ wrapper}
 %
 % \changes{v1.0}{2026/06/08}{Initial version}
-% \changes{v1.1}{2026/07/01}{Add YAML style and \cs{includeyaml}}
+% \changes{v1.1}{2026/07/22}{Add YAML style and \cs{includeyaml}}
+% \changes{v1.1}{2026/07/22}{Add a numbered verbatim fallback under \LaTeX, made
+%   the default; \cs{ctxuselistings} and \cs{ctxuseverbatim} switch modes}
+% \changes{v1.1}{2026/07/22}{Auto-size the verbatim line-number gutter to the
+%   file's line count}
+% \changes{v1.1}{2026/07/22}{Add Make style and \cs{includemake}, and expand tabs
+%   when weaving}
+% \changes{v1.1}{2026/07/22}{Add the \texttt{-{}-tangle} command-line mode}
+% \changes{v1.1}{2026/07/22}{Accept extensionless and directory-qualified file
+%   names}
+% \changes{v1.1}{2026/07/22}{Fix a spurious \% on the first line of a plain-wrapper
+%   listing}
 %
 % Announce the package.  \textsf{listings} is an \emph{optional} companion, not
 % a hard dependency: if the document has loaded it, the include macros emit
@@ -296,7 +307,7 @@ done
 %    \begin{macrocode}
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{comment2tex}
-  [2026/07/01 v1.1 Include annotated source files as LaTeX listings]
+  [2026/07/22 v1.1 Include annotated source files as LaTeX listings]
 \AtBeginDocument{%
   \@ifpackageloaded{listings}{%
     \lstset{basicstyle=\ttfamily\small,columns=fullflexible,%
