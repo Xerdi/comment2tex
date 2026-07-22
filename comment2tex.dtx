@@ -59,6 +59,39 @@ done
 % converter, and input the result, so a document can pull in annotated sources
 % without a manual build step.
 %
+% \subsection{Is it literate programming?}
+%
+% Loosely.  \textsf{comment2tex} borrows literate programming's vocabulary --- it
+% \emph{weaves} an annotated source into typeset documentation and can \emph{tangle}
+% it back to runnable code --- but it is a deliberately lightweight take, not an
+% implementation of Knuth's \textsc{web}.
+%
+% Two things set it apart.  First, order: classic literate programming writes the
+% source for the reader --- code is split into named chunks presented in whatever
+% sequence best explains it, and \emph{tangle} reassembles them into the order the
+% machine needs.  \textsf{comment2tex} does no reordering; the source \emph{is} the
+% program, in its natural order.  Second, \emph{tangle} is off the critical path: in
+% \textsc{web} you must tangle a \texttt{.web} before you can compile or run it,
+% whereas here the doc-comments are ordinary language comments, so the annotated file
+% runs unmodified and \emph{tangling} --- just dropping the doc lines --- is an
+% optional convenience, never a build step.  The prose follows the code, not the
+% other way round.
+%
+% That fits its origin.  \textsf{comment2tex} was written to document Xerdi's
+% production-critical sources: Bash scripts, and the Ansible playbooks and
+% inventories woven into a complete infrastructure handbook.  Such sources are mostly
+% linear and functional, so \textsc{web}'s reordering would buy little --- and since
+% they are deployed and run as-is, needing no tangle step between the documented file
+% and the running one was a hard requirement, not a nicety.  Each stays a short,
+% standalone file, documented in place and pulled into the book by the include macros
+% rather than dissolved into one monolithic source, so the file on disk stays the
+% single source of truth.
+%
+% What is left is the low-friction core --- one source that reads as documentation
+% and runs as code, with no separate web language and no chance of the two drifting
+% apart.  In spirit it sits beside a self-documenting \texttt{.dtx} (this manual is
+% one) rather than \textsc{web} or \textsc{cweb}.
+%
 % \section{Usage}\label{sec:usage}
 %
 % \DescribeMacro{\includebash}
