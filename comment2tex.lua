@@ -36,14 +36,18 @@ M.styles = {
 --- verbatim up to a line equal to \cs{endctxlisting}.  Templates substitute
 --- \texttt{@LANG@} with the language and \texttt{@CONT@} with \texttt{firstnumber=last,}
 --- on every block after the first (empty on the first) so numbering stays continuous.
+--- A wrapper may also carry a \texttt{preamble}, emitted once before the first block; the
+--- \texttt{plain} wrapper uses it to announce the code-line count (as \texttt{@WIDTH@}, a
+--- run of zeros matching its digit width) so the reader can size the line-number gutter.
 M.wrappers = {
   lstlisting = {
     begin  = "\\begin{lstlisting}[language=@LANG@,@CONT@numbers=left]",
     finish = "\\end{lstlisting}",
   },
   plain = {
-    begin  = "\\ctxlisting%",
-    finish = "\\endctxlisting",
+    preamble = "\\ctxlistingtotal{@WIDTH@}",
+    begin    = "\\ctxlisting%",
+    finish   = "\\endctxlisting",
   },
 }
 
@@ -54,6 +58,7 @@ M.defaults = {
   language = nil,
   begin    = nil,
   finish   = nil,
+  preamble = nil,
 }
 
 --- \subsubsection{Option handling}
@@ -85,6 +90,7 @@ function M.resolve(o)
   o.language = o.language or style.language
   o.begin    = o.begin    or wrapper.begin
   o.finish   = o.finish   or wrapper.finish
+  o.preamble = o.preamble or wrapper.preamble
   return o
 end
 
@@ -99,6 +105,14 @@ function M.convert(o, lines, emit)
   local plen = #prefix
   local in_code = false
   local block_count = 0
+
+  if o.preamble then
+    local n = 0
+    for _, line in ipairs(lines) do
+      if line:sub(1, plen) ~= prefix then n = n + 1 end
+    end
+    emit((o.preamble:gsub("@WIDTH@", ("0"):rep(#tostring(n)))))
+  end
 
   local function open_code()
     if not in_code then

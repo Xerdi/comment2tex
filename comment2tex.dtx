@@ -227,10 +227,12 @@ done
 % included file (by \cs{ctx@include}) and advanced \emph{globally} per line, so
 % it survives the group boundary between consecutive blocks: that reproduces
 % \textsf{listings}' \texttt{firstnumber=last}.  \cs{ctx@num} styles the number
-% like \textsf{ltxdoc}'s \texttt{macrocode}: \cs{reset@font}\cs{scriptsize},
-% right-aligned with \cs{llap} into a \cs{leftskip} gutter sized (via
-% \cs{settowidth}) for two digits, so wider counts hang into the margin just as
-% they do there.  \cs{ctx@uncatcode} switches to
+% like \textsf{ltxdoc}'s \texttt{macrocode} --- \cs{reset@font}\cs{scriptsize},
+% right-aligned with \cs{llap} into a \cs{leftskip} gutter.  \cs{ctxlistingtotal}
+% sizes that gutter: the converter emits it once before the first block with a run
+% of zeros matching the file's code-line count, so the width fits the largest
+% number exactly (a three-digit default, set in \cs{ctx@include}, covers
+% hand-made fragments).  \cs{ctx@uncatcode} switches to
 % the verbatim regime (\cs{dospecials} makes the specials \emph{and} the space
 % category~12, preserving indentation); \cs{ctx@gobble} discards the remainder of
 % the \cs{ctxlisting} line (its trailing \texttt{\%}) before \cs{ctx@grab}
@@ -239,6 +241,7 @@ done
 \newcount\ctx@lineno
 \newdimen\ctx@numindent
 \providecommand\ctx@numstyle{\reset@font\scriptsize}
+\def\ctxlistingtotal#1{\settowidth\ctx@numindent{\ctx@numstyle #1\ }}
 \def\ctx@num{%
   \global\advance\ctx@lineno\@ne
   \llap{\ctx@numstyle\the\ctx@lineno\ }}
@@ -247,7 +250,6 @@ done
 \catcode`\^^M=\active%
 \gdef\ctxlisting{%
   \par\begingroup
-  \settowidth\ctx@numindent{\ctx@numstyle 000\ }%
   \ctx@uncatcode
   \parindent=\z@ \leftskip=\ctx@numindent \small\ttfamily
   \catcode`\^^M=\active%
@@ -312,9 +314,9 @@ done
          \PackageWarning{comment2tex}{\string\ctxuselistings\space requested but
            listings is not loaded; using the verbatim fallback}%
        \fi
-       \def\ctx@wrap{plain}\global\ctx@lineno\z@}%
+       \def\ctx@wrap{plain}\global\ctx@lineno\z@\ctxlistingtotal{000}}%
   \else
-    \def\ctx@wrap{plain}\global\ctx@lineno\z@
+    \def\ctx@wrap{plain}\global\ctx@lineno\z@\ctxlistingtotal{000}%
   \fi
   \ifdefined\directlua
     \directlua{comment2tex.write("#1","\ctx@wrap",
@@ -408,6 +410,14 @@ done
 % Make the usual specials (and the space) category 12, the verbatim regime.
 %    \begin{macrocode}
 \def\ctxuncatcode{\def\do##1{\catcode`##1=12 }\dospecials}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ctxlistingtotal}
+% The plain \TeX\ listing carries no line numbers, so the converter's
+% gutter-sizing hint (emitted once before the first block) is a no-op here.
+%    \begin{macrocode}
+\def\ctxlistingtotal#1{}
 %    \end{macrocode}
 % \end{macro}
 %
