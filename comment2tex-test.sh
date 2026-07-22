@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-# comment2tex-test.sh -- exercise comment2tex across every TeX engine.
-#
-# It extracts the wrappers from the .dtx, builds small annotated fixtures, and
-# drives each supported route to a PDF:
-#
-#   * texlua          the converter as a CLI (parity with the legacy scripts)
-#   * LuaLaTeX        in-process via \directlua (no shell escape, no pre-run)
-#   * pdfLaTeX        shell escape (-shell-escape -> texlua)
-#   * pdfLaTeX        separate run (fragments pre-built, then plain pdflatex)
-#   * plain luatex    in-process via \directlua
-#   * plain pdftex    shell escape and separate run
-#   * LuaLaTeX        the comment2tex.dtx documentation (the \includelua dogfood)
-#
-# Missing engines are skipped, not failed.  Any engine that runs and fails makes
-# the whole suite exit non-zero.
-#
-# TEXMFHOME is redirected to an empty directory so a user's personal listings
-# configuration cannot interfere with the package under test.
-
+## \subsection{What the suite covers}
+## \texttt{comment2tex-test.sh} drives the converter and both wrappers through every
+## supported \TeX\ route, so a change cannot quietly break one path while another
+## keeps working.  Each route is exercised end to end --- annotated source to
+## \texttt{.c2t.tex} fragment to \emph{PDF}:
+## \begin{itemize}
+## \item \texttt{texlua} --- the converter as a command-line program.
+## \item Lua\LaTeX\ --- in process through \cs{directlua} (no shell escape, no pre-run).
+## \item pdf\LaTeX\ --- shell escape, and a separate run over pre-built fragments.
+## \item plain \texttt{luatex} and \texttt{pdftex} --- the plain \TeX\ wrapper.
+## \item Lua\LaTeX\ on \texttt{comment2tex.dtx} itself --- the self-documenting
+##       \cs{includelua} build of this manual.
+## \end{itemize}
+## A missing engine is skipped, never failed; any engine that runs and fails makes
+## the whole suite exit non-zero.  \texttt{TEXMFHOME} is redirected to an empty tree
+## so a personal \textsf{listings} configuration cannot leak into the run.
 set -uo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -28,11 +25,15 @@ mkdir -p "$TEXMFHOME"
 pass=0 fail=0 skip=0
 failed_names=()
 
+## \subsection{Harness helpers}
+## \texttt{log} prints a line; \texttt{have} reports whether an engine is on the
+## \texttt{PATH}.
 log()  { printf '%s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# run NAME OUTPUT -- CMD...
-# Runs CMD (stdin closed); a pass needs exit 0 and a non-empty OUTPUT file.
+## \texttt{run}~\meta{name}~\meta{output}~\texttt{-{}-}~\meta{cmd}\dots{} runs
+## \meta{cmd} with stdin closed and passes only when it exits zero \emph{and} leaves
+## a non-empty \meta{output} \emph{PDF}; on failure it prints the first \TeX\ error.
 run() {
   local name="$1" out="$2"; shift 2
   [ "$1" = "--" ] && shift
@@ -52,29 +53,43 @@ skip() { log "SKIP  $name -- $1"; skip=$((skip + 1)); }
 
 C2T="texlua $WORK/comment2tex.lua"
 
-# --------------------------------------------------------------------------
-# Fixtures and wrappers
-# --------------------------------------------------------------------------
+## Common engine flags, factored out so the driver runs stay within one line:
+## \texttt{\$NS} is nonstop interaction, \texttt{\$OPTS} adds halt-on-error (the
+## self-documenting build omits the halt so a warning cannot stop it).
+NS="-interaction=nonstopmode"
+OPTS="$NS -halt-on-error"
+
+## \subsection{Fixtures}
+## Everything runs in a scratch copy of the sources, and the wrappers are extracted
+## from the \texttt{.dtx} first, so the suite tests exactly what \texttt{docstrip}
+## ships rather than a stale build.  A wrapper that will not build is a hard error,
+## not a skip.
 log "workspace: $WORK"
-cp "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" "$SRC/comment2tex.ins" "$WORK"/ || {
+cp "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" \
+   "$SRC/comment2tex.ins" "$WORK"/ || {
   log "FATAL: cannot find comment2tex sources next to this script"; exit 2; }
 
 cd "$WORK" || exit 2
 
-# Extract comment2tex.sty and comment2tex.tex from the .dtx.
 if have tex; then
-  if tex comment2tex.ins </dev/null >"$WORK/ins.log" 2>&1 && [ -s comment2tex.sty ] && [ -s comment2tex.tex ]; then
+  if tex comment2tex.ins </dev/null >"$WORK/ins.log" 2>&1 \
+       && [ -s comment2tex.sty ] && [ -s comment2tex.tex ]; then
     log "PASS  docstrip extraction (comment2tex.sty, comment2tex.tex)"
     pass=$((pass + 1))
   else
-    log "FAIL  docstrip extraction"; tail -5 "$WORK/ins.log" | sed 's/^/        /'
+    log "FAIL  docstrip extraction"
+    tail -5 "$WORK/ins.log" | sed 's/^/        /'
     fail=$((fail + 1)); failed_names+=("docstrip extraction")
   fi
 else
   log "FATAL: 'tex' is required to extract the wrappers"; exit 2
 fi
 
-# Doc-comment fixtures, kept plain so they typeset under article *and* plain TeX.
+## Three tiny annotated fixtures, one per style, kept trivial so they typeset under
+## both \texttt{article} and plain \TeX.  Bash and YAML use the \texttt{\#\#}
+## doc-prefix, Lua uses \texttt{-{}-{}-}.  The YAML fixture opens with a
+## \texttt{-{}-{}-} document-start marker --- a code line that exercises whatever
+## \texttt{literate} rule a \texttt{yaml} language applies to it.
 printf '%s\n' \
   '## Demonstration Bash source.' \
   '## Double-hash lines become prose.' \
@@ -88,10 +103,6 @@ printf '%s\n' \
   'local x = 1' \
   'print(x)' \
   '--- Done.' > demo-lua.lua
-# YAML doc-comments are "##" -- ordinary YAML comments, so the fixture stays
-# valid YAML while the double-hash lines become prose.  The "---" document-start
-# marker is a code line: it exercises the path that a yaml language's literate
-# rules act on.
 printf '%s\n' \
   '## Demonstration YAML source.' \
   '## Double-hash lines become prose.' \
@@ -102,10 +113,10 @@ printf '%s\n' \
   '  - b' \
   '## Done.' > demo-yaml.yml
 
-# Default (verbatim) path: listings is NOT loaded.  The include macros must fall
-# back to the built-in numbered verbatim -- no listings, no yaml language, no
-# error.  (The suite runs under a deliberately-empty TEXMFHOME, so no personal or
-# system config leaks in.)
+## \subsection{Driver documents}
+## One \LaTeX\ (and one plain \TeX) driver per behaviour under test.  The default
+## driver loads no \textsf{listings}, so the include macros must fall back to the
+## built-in numbered verbatim without error.
 cat > doc-latex.tex <<'EOF'
 \documentclass{article}
 \usepackage{comment2tex}
@@ -116,9 +127,8 @@ cat > doc-latex.tex <<'EOF'
 \end{document}
 EOF
 
-# Listings path, no yaml language defined: the document loads listings and opts
-# in with \ctxuselistings, so \includeyaml must install its own empty "yaml"
-# language and typeset under the default style rather than faulting.
+## In \textsf{listings} mode with no \texttt{yaml} language defined, \cs{includeyaml}
+## must install its own empty one and typeset under the default style.
 cat > doc-latex-listings.tex <<'EOF'
 \documentclass{article}
 \usepackage{listings}
@@ -131,9 +141,9 @@ cat > doc-latex-listings.tex <<'EOF'
 \end{document}
 EOF
 
-# Listings path, document-defined yaml language: a self-contained "yaml" language
-# (no external package -- comment2tex has no dependency on any yaml highlighter).
-# \includeyaml in listings mode must leave this definition untouched and use it.
+## In \textsf{listings} mode \emph{with} a self-contained \texttt{yaml} language (no
+## external package --- comment2tex depends on no yaml highlighter), \cs{includeyaml}
+## must leave that definition untouched and use it.
 cat > doc-latex-yaml.tex <<'EOF'
 \documentclass{article}
 \usepackage{listings}
@@ -150,8 +160,8 @@ cat > doc-latex-yaml.tex <<'EOF'
 \end{document}
 EOF
 
-# Mid-document switch: the same file rendered verbatim (default), then listings,
-# then verbatim again -- exercises \ctxuselistings / \ctxuseverbatim in one run.
+## The switch driver renders one file verbatim, then \textsf{listings}, then verbatim
+## again, exercising \cs{ctxuselistings} and \cs{ctxuseverbatim} in a single run.
 cat > doc-latex-switch.tex <<'EOF'
 \documentclass{article}
 \usepackage{listings}
@@ -168,6 +178,7 @@ Back to verbatim:\par
 \end{document}
 EOF
 
+## The plain \TeX\ driver \cs{input}s \texttt{comment2tex.tex} directly.
 cat > doc-plain.tex <<'EOF'
 \input comment2tex.tex
 \includebash{demo-bash.sh}
@@ -176,6 +187,9 @@ cat > doc-plain.tex <<'EOF'
 \bye
 EOF
 
+## \texttt{gen\_frags}~\meta{wrapper} pre-builds the three fragments for the
+## separate-run routes; \texttt{clean\_frags} deletes them so an in-process route
+## cannot silently reuse a stale fragment.
 clean_frags() { rm -f demo-bash.c2t.tex demo-lua.c2t.tex demo-yaml.c2t.tex; }
 gen_frags() {  # gen_frags WRAPPER
   $C2T --style bash --wrapper "$1" -o demo-bash.c2t.tex demo-bash.sh &&
@@ -183,26 +197,35 @@ gen_frags() {  # gen_frags WRAPPER
   $C2T --style yaml --wrapper "$1" -o demo-yaml.c2t.tex demo-yaml.yml
 }
 
-# --------------------------------------------------------------------------
-# 1. The converter as a CLI
-# --------------------------------------------------------------------------
+## \subsection{The converter as a command-line program}
+## The CLI must emit an \texttt{lstlisting} block per style, the plain wrapper's
+## \cs{ctxlisting} and \cs{endctxlisting} brackets, and --- with \texttt{-{}-tangle} ---
+## byte-for-byte what the \texttt{sed} it replaces would, for every style.
 name="texlua CLI (lstlisting + plain output)"
 if have texlua; then
-  if $C2T --style bash demo-bash.sh | grep -q '\\begin{lstlisting}\[language=bash' &&
-     $C2T --style lua  demo-lua.lua  | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}' &&
-     $C2T --style yaml demo-yaml.yml | grep -q '\\begin{lstlisting}\[language=yaml' &&
-     $C2T --style yaml --wrapper plain demo-yaml.yml | grep -q '\\ctxlisting' &&
-     $C2T --style yaml --wrapper plain demo-yaml.yml | grep -q '\\endctxlisting'; then
+  if $C2T --style bash demo-bash.sh \
+       | grep -q '\\begin{lstlisting}\[language=bash' &&
+     $C2T --style lua demo-lua.lua \
+       | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}' &&
+     $C2T --style yaml demo-yaml.yml \
+       | grep -q '\\begin{lstlisting}\[language=yaml' &&
+     $C2T --style yaml --wrapper plain demo-yaml.yml \
+       | grep -q '\\ctxlisting' &&
+     $C2T --style yaml --wrapper plain demo-yaml.yml \
+       | grep -q '\\endctxlisting'; then
     log "PASS  $name"; pass=$((pass + 1))
   else
     log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
   fi
 
-  # --tangle strips doc-comments, style-aware: parity with the sed it replaces.
+  # --tangle strips doc-comments, style-aware: same output as the old sed.
   name="texlua CLI --tangle (== sed, per style)"
-  if diff -q <(sed '/^##/d'  demo-bash.sh) <($C2T --style bash --tangle demo-bash.sh) >/dev/null &&
-     diff -q <(sed '/^---/d' demo-lua.lua) <($C2T --style lua  --tangle demo-lua.lua)  >/dev/null &&
-     diff -q <(sed '/^##/d'  demo-yaml.yml) <($C2T --style yaml --tangle demo-yaml.yml) >/dev/null; then
+  if diff -q <(sed '/^##/d' demo-bash.sh) \
+            <($C2T --style bash --tangle demo-bash.sh) >/dev/null &&
+     diff -q <(sed '/^---/d' demo-lua.lua) \
+            <($C2T --style lua --tangle demo-lua.lua) >/dev/null &&
+     diff -q <(sed '/^##/d' demo-yaml.yml) \
+            <($C2T --style yaml --tangle demo-yaml.yml) >/dev/null; then
     log "PASS  $name"; pass=$((pass + 1))
   else
     log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
@@ -222,87 +245,89 @@ else
   skip "texlua not installed"
 fi
 
-# --------------------------------------------------------------------------
-# 2. LaTeX wrapper
-# --------------------------------------------------------------------------
+## \subsection{The \LaTeX\ wrapper}
+## The same three fixtures are typeset through every \LaTeX\ route --- verbatim
+## default, both \textsf{listings} paths, the mid-document switch, and pdf\LaTeX\ by
+## shell escape and by separate run --- each passing only on a non-empty \emph{PDF}.
 name="LuaLaTeX in-process (verbatim default, no listings)"
 if have lualatex; then
   clean_frags
-  run "$name" doc-latex.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex.tex
+  run "$name" doc-latex.pdf -- lualatex $OPTS doc-latex.tex
 else skip "lualatex not installed"; fi
 
 name="LuaLaTeX in-process (listings mode, yaml fallback language)"
 if have lualatex; then
   clean_frags
-  run "$name" doc-latex-listings.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-listings.tex
+  run "$name" doc-latex-listings.pdf -- lualatex $OPTS doc-latex-listings.tex
 else skip "lualatex not installed"; fi
 
 name="LuaLaTeX in-process (listings mode, document-defined yaml language)"
 if have lualatex; then
   rm -f demo-yaml.c2t.tex
-  run "$name" doc-latex-yaml.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-yaml.tex
+  run "$name" doc-latex-yaml.pdf -- lualatex $OPTS doc-latex-yaml.tex
 else skip "lualatex not installed"; fi
 
 name="LuaLaTeX in-process (mid-document verbatim<->listings switch)"
 if have lualatex; then
   clean_frags
-  run "$name" doc-latex-switch.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-switch.tex
+  run "$name" doc-latex-switch.pdf -- lualatex $OPTS doc-latex-switch.tex
 else skip "lualatex not installed"; fi
 
 name="pdfLaTeX -shell-escape (verbatim default)"
 if have pdflatex; then
   clean_frags
-  run "$name" doc-latex.pdf -- pdflatex -shell-escape -interaction=nonstopmode -halt-on-error doc-latex.tex
+  run "$name" doc-latex.pdf -- pdflatex -shell-escape $OPTS doc-latex.tex
 else skip "pdflatex not installed"; fi
 
 name="pdfLaTeX separate-run, verbatim (no shell escape)"
 if have pdflatex && have texlua; then
   clean_frags
   gen_frags plain
-  run "$name" doc-latex.pdf -- pdflatex -interaction=nonstopmode -halt-on-error doc-latex.tex
+  run "$name" doc-latex.pdf -- pdflatex $OPTS doc-latex.tex
 else skip "pdflatex or texlua not installed"; fi
 
 name="pdfLaTeX separate-run, listings (no shell escape)"
 if have pdflatex && have texlua; then
   clean_frags
   gen_frags lstlisting
-  run "$name" doc-latex-listings.pdf -- pdflatex -interaction=nonstopmode -halt-on-error doc-latex-listings.tex
+  run "$name" doc-latex-listings.pdf -- pdflatex $OPTS doc-latex-listings.tex
 else skip "pdflatex or texlua not installed"; fi
 
-# --------------------------------------------------------------------------
-# 3. plain TeX wrapper
-# --------------------------------------------------------------------------
+## \subsection{The plain \TeX\ wrapper}
+## The plain wrapper has no \textsf{listings}, so it is driven under \texttt{luatex}
+## (in process) and \texttt{pdftex} (shell escape and separate run).
 name="plain luatex in-process"
 if have luatex; then
   clean_frags
-  run "$name" doc-plain.pdf -- luatex -interaction=nonstopmode -halt-on-error doc-plain.tex
+  run "$name" doc-plain.pdf -- luatex $OPTS doc-plain.tex
 else skip "luatex not installed"; fi
 
 name="plain pdftex -shell-escape"
 if have pdftex; then
   clean_frags
-  run "$name" doc-plain.pdf -- pdftex -shell-escape -interaction=nonstopmode -halt-on-error doc-plain.tex
+  run "$name" doc-plain.pdf -- pdftex -shell-escape $OPTS doc-plain.tex
 else skip "pdftex not installed"; fi
 
 name="plain pdftex separate-run (no shell escape)"
 if have pdftex && have texlua; then
   clean_frags
   gen_frags plain
-  run "$name" doc-plain.pdf -- pdftex -interaction=nonstopmode -halt-on-error doc-plain.tex
+  run "$name" doc-plain.pdf -- pdftex $OPTS doc-plain.tex
 else skip "pdftex or texlua not installed"; fi
 
-# --------------------------------------------------------------------------
-# 4. The documentation itself (dogfood: \includelua{comment2tex.lua})
-# --------------------------------------------------------------------------
+## \subsection{The documentation itself}
+## Finally the suite builds \texttt{comment2tex.dtx} --- the very manual you are
+## reading --- which \cs{includelua}s the converter and \cs{includebash}s this
+## script, so a break in either self-documenting include fails the build.
 name="LuaLaTeX builds comment2tex.dtx"
 if have lualatex; then
   rm -f comment2tex.c2t.tex
-  run "$name" comment2tex.pdf -- lualatex -interaction=nonstopmode comment2tex.dtx
+  run "$name" comment2tex.pdf -- lualatex $NS comment2tex.dtx
 else skip "lualatex not installed"; fi
 
-# --------------------------------------------------------------------------
-# Summary
-# --------------------------------------------------------------------------
+## \subsection{Summary}
+## The tally is printed; a non-zero \texttt{fail} keeps the workspace for inspection
+## and exits non-zero, otherwise the scratch tree is removed.
 log ""
 log "------------------------------------------------------------"
 log "PASS: $pass   FAIL: $fail   SKIP: $skip"

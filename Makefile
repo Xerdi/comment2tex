@@ -20,6 +20,7 @@ INS      = comment2tex.ins
 WRAPPERS = comment2tex.sty comment2tex.tex
 DOC      = comment2tex.pdf
 README   = README.md
+TESTSH   = comment2tex-test.sh
 
 # Literate sources converted to standalone fragments named to match the package
 # convention.  comment2tex.lua documents itself with the "---" doc-comment style.
@@ -30,7 +31,9 @@ FRAGS    = $(LUA_SRC:.lua=.c2t.tex)
 # wrappers (comment2tex.sty, comment2tex.tex) are generated from the .dtx via the
 # .ins, so CTAN regenerates them and they are not shipped.  comment2tex.lua is
 # shipped separately by the package rule, stripped of its doc-comments (see
-# below), so it is not listed here either.
+# below), so it is not listed here either.  The test suite is a development
+# artifact, not shipped; the manual's Testing section \includebash's it only when
+# present (guarded by \IfFileExists), so a rebuild from the CTAN sources still works.
 DISTFILES = $(DTX) $(INS) $(README) $(DOC)
 
 .PHONY: all wrappers doc test frags package clean help
@@ -45,7 +48,7 @@ $(WRAPPERS): $(DTX) $(INS)
 ## doc: typeset the documentation (LuaLaTeX, for the in-process \includelua demo).
 ##      latexmk reruns LuaLaTeX until the table of contents resolves.
 doc: $(DOC)
-$(DOC): $(DTX) comment2tex.sty comment2tex.lua
+$(DOC): $(DTX) comment2tex.sty comment2tex.lua $(TESTSH)
 	$(LATEXMK) $(PVC) --lualatex --interaction=nonstopmode $(DTX)
 
 ## test: run the cross-engine test suite.

@@ -516,5 +516,20 @@ done
 % \end{macro}
 % \end{macro}
 %
+% \section{Testing}
+%
+% \textsf{comment2tex} carries a cross-engine test suite, \texttt{comment2tex-test.sh}
+% --- and, true to the package, that script is itself an annotated Bash source.
+% What follows is the script, typeset by \cs{includebash} in the default verbatim
+% mode: its \texttt{\#\#} lines are the prose you read, everything else is the code
+% that runs.
+%
+% The suite is a development artefact and is not part of the distribution, so the
+% listing appears only when the script is present next to the \texttt{.dtx}.
+% \IfFileExists{comment2tex-test.sh}{%
+%   \includebash{comment2tex-test.sh}%
+% }{\par\emph{(\texttt{comment2tex-test.sh} is not included in this
+%   distribution; see the package's development repository.)}\par}
+%
 % \Finale
 \endinput
