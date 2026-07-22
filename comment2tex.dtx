@@ -11,6 +11,7 @@
 \documentclass{ltxdoc}
 \usepackage{listings}% optional companion; loaded here for the listings demo
 \usepackage{comment2tex}
+\usepackage{hyperref}% \nameref for the section cross-references, plus PDF navigation
 \GetFileInfo{comment2tex.sty}
 \begin{filecontents*}[overwrite]{c2t-demo.sh}
 ## A short annotated Bash source.  Double-hash lines become prose,
@@ -22,6 +23,7 @@ done
 \end{filecontents*}
 \EnableCrossrefs
 \CodelineIndex
+\AtBeginDocument{\hypersetup{hidelinks}}% ltxdoc colours links at begin-document
 \begin{document}
   \DocInput{comment2tex.dtx}
 \end{document}
@@ -87,8 +89,8 @@ done
 % \TeX\ grouping, so a single block can opt in locally.  Requesting
 % \textsf{listings} without having loaded it warns once and stays on verbatim.
 % Like \textsf{ltxdoc}'s own \texttt{macrocode}, the verbatim renderer does not
-% break long lines; switch to \textsf{listings} mode (with \texttt{breaklines})
-% where wrapping matters.
+% break long lines; switch to \textsf{listings} mode (\emph{\nameref{sec:listings}},
+% with \texttt{breaklines}) where wrapping matters.
 %
 % In \textsf{listings} mode the package applies a plain default \cs{lstset} for
 % you (\cs{AtBeginDocument}, only if \textsf{listings} is loaded).  The Bash and
@@ -99,7 +101,25 @@ done
 % The plain \TeX\ wrapper always uses a verbatim listing, since \textsf{listings}
 % is \LaTeX-only.
 %
-% \section{Engines and use cases}
+% \subsection{Examples in this manual}\label{sec:examples}
+%
+% This manual is built with the very macros it documents, so each one appears as a
+% full worked example on a real file:
+% \begin{itemize}
+% \item \cs{includemake} on a \texttt{Makefile} --- see \emph{\nameref{sec:build}}.
+% \item \cs{includelua} on the converter itself --- see
+%   \emph{\nameref{sec:converter}}.
+% \item \cs{includebash} on a short script, both verbatim and through
+%   \textsf{listings} --- see \emph{\nameref{sec:listings}}.
+% \item \cs{includebash} on the cross-engine test suite --- see
+%   \emph{\nameref{sec:testing}}.
+% \end{itemize}
+% Together they cover all four styles and both render modes.  Even the code in
+% \emph{\nameref{sec:impl}} is typeset automatically --- there by \textsf{ltxdoc}'s
+% \texttt{macrocode} rather than \textsf{comment2tex} --- so no listing in this
+% manual is typed by hand.
+%
+% \section{Engines and use cases}\label{sec:engines}
 %
 % How the conversion happens depends on the engine.
 %
@@ -140,7 +160,7 @@ done
 % In every case the generated file is \meta{base}\texttt{.c2t.tex}, so the
 % in-process, shell-escape and separate-run routes are interchangeable.
 %
-% \section{The build}
+% \section{The build}\label{sec:build}
 %
 % The package's own build is a \texttt{Makefile}, and --- like the converter and
 % the test suite --- it is an annotated source, typeset here by \cs{includemake}
@@ -155,7 +175,7 @@ done
 % }{\par\emph{(the \texttt{Makefile} is not included in this distribution; see the
 %   package's development repository.)}\par}
 %
-% \section{The converter, by example}
+% \section{The converter, by example}\label{sec:converter}
 %
 % Because the converter is itself a literate Lua file, the cleanest
 % demonstration is to let it document itself.  The remainder of this section is
@@ -166,9 +186,10 @@ done
 %
 % \includelua{comment2tex.lua}
 %
-% \section{The listings variant}
+% \section{The listings variant}\label{sec:listings}
 %
-% Everything above used the default verbatim renderer.  When a document loads
+% Everything above --- \emph{\nameref{sec:build}} and \emph{\nameref{sec:converter}}
+% --- used the default verbatim renderer.  When a document loads
 % \textsf{listings}, \cs{ctxuselistings} switches the blocks that follow to it
 % (and \cs{ctxuseverbatim} switches back).  Below is one annotated Bash source
 % both ways: first the verbatim default, then the same file through
@@ -183,7 +204,7 @@ done
 % \includebash{c2t-demo.sh}
 % \ctxuseverbatim
 %
-% \section{Implementation}
+% \section{Implementation}\label{sec:impl}
 %
 % \subsection{The \LaTeX\ wrapper}
 %
@@ -540,7 +561,7 @@ done
 % \end{macro}
 % \end{macro}
 %
-% \section{Testing}
+% \section{Testing}\label{sec:testing}
 %
 % \textsf{comment2tex} carries a cross-engine test suite, \texttt{comment2tex-test.sh}
 % --- and, true to the package, that script is itself an annotated Bash source.
