@@ -102,10 +102,10 @@ printf '%s\n' \
   '  - b' \
   '## Done.' > demo-yaml.yml
 
-# Fallback path: no "yaml" language is defined anywhere (the suite runs under a
-# deliberately-empty TEXMFHOME, so no personal or system listings config leaks
-# in).  \includeyaml must install its own empty "yaml" language and typeset the
-# source under the default style rather than faulting on language=yaml.
+# Default (verbatim) path: listings is NOT loaded.  The include macros must fall
+# back to the built-in numbered verbatim -- no listings, no yaml language, no
+# error.  (The suite runs under a deliberately-empty TEXMFHOME, so no personal or
+# system config leaks in.)
 cat > doc-latex.tex <<'EOF'
 \documentclass{article}
 \usepackage{comment2tex}
@@ -116,11 +116,27 @@ cat > doc-latex.tex <<'EOF'
 \end{document}
 EOF
 
-# Present path: the document defines its own, self-contained "yaml" language
+# Listings path, no yaml language defined: the document loads listings and opts
+# in with \ctxuselistings, so \includeyaml must install its own empty "yaml"
+# language and typeset under the default style rather than faulting.
+cat > doc-latex-listings.tex <<'EOF'
+\documentclass{article}
+\usepackage{listings}
+\usepackage{comment2tex}
+\begin{document}
+\ctxuselistings
+\includebash{demo-bash.sh}
+\includelua{demo-lua.lua}
+\includeyaml{demo-yaml.yml}
+\end{document}
+EOF
+
+# Listings path, document-defined yaml language: a self-contained "yaml" language
 # (no external package -- comment2tex has no dependency on any yaml highlighter).
-# \includeyaml must leave this definition untouched and use it.
+# \includeyaml in listings mode must leave this definition untouched and use it.
 cat > doc-latex-yaml.tex <<'EOF'
 \documentclass{article}
+\usepackage{listings}
 \usepackage{comment2tex}
 \lstdefinelanguage{yaml}{
   comment=[l]{\#},
@@ -129,6 +145,25 @@ cat > doc-latex-yaml.tex <<'EOF'
   literate={---}{{\bfseries-{}-{}-}}3
 }
 \begin{document}
+\ctxuselistings
+\includeyaml{demo-yaml.yml}
+\end{document}
+EOF
+
+# Mid-document switch: the same file rendered verbatim (default), then listings,
+# then verbatim again -- exercises \ctxuselistings / \ctxuseverbatim in one run.
+cat > doc-latex-switch.tex <<'EOF'
+\documentclass{article}
+\usepackage{listings}
+\usepackage{comment2tex}
+\begin{document}
+Default verbatim:\par
+\includebash{demo-bash.sh}
+\ctxuselistings
+Now listings:\par
+\includebash{demo-bash.sh}
+\ctxuseverbatim
+Back to verbatim:\par
 \includeyaml{demo-yaml.yml}
 \end{document}
 EOF
@@ -151,11 +186,13 @@ gen_frags() {  # gen_frags WRAPPER
 # --------------------------------------------------------------------------
 # 1. The converter as a CLI
 # --------------------------------------------------------------------------
-name="texlua CLI (lstlisting output)"
+name="texlua CLI (lstlisting + plain output)"
 if have texlua; then
   if $C2T --style bash demo-bash.sh | grep -q '\\begin{lstlisting}\[language=bash' &&
      $C2T --style lua  demo-lua.lua  | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}' &&
-     $C2T --style yaml demo-yaml.yml | grep -q '\\begin{lstlisting}\[language=yaml'; then
+     $C2T --style yaml demo-yaml.yml | grep -q '\\begin{lstlisting}\[language=yaml' &&
+     $C2T --style yaml --wrapper plain demo-yaml.yml | grep -q '\\ctxlisting' &&
+     $C2T --style yaml --wrapper plain demo-yaml.yml | grep -q '\\endctxlisting'; then
     log "PASS  $name"; pass=$((pass + 1))
   else
     log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
@@ -177,29 +214,48 @@ fi
 # --------------------------------------------------------------------------
 # 2. LaTeX wrapper
 # --------------------------------------------------------------------------
-name="LuaLaTeX in-process (yaml fallback, no language defined)"
+name="LuaLaTeX in-process (verbatim default, no listings)"
 if have lualatex; then
   clean_frags
   run "$name" doc-latex.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex.tex
 else skip "lualatex not installed"; fi
 
-name="LuaLaTeX in-process (document-defined yaml language)"
+name="LuaLaTeX in-process (listings mode, yaml fallback language)"
+if have lualatex; then
+  clean_frags
+  run "$name" doc-latex-listings.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-listings.tex
+else skip "lualatex not installed"; fi
+
+name="LuaLaTeX in-process (listings mode, document-defined yaml language)"
 if have lualatex; then
   rm -f demo-yaml.c2t.tex
   run "$name" doc-latex-yaml.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-yaml.tex
 else skip "lualatex not installed"; fi
 
-name="pdfLaTeX -shell-escape"
+name="LuaLaTeX in-process (mid-document verbatim<->listings switch)"
+if have lualatex; then
+  clean_frags
+  run "$name" doc-latex-switch.pdf -- lualatex -interaction=nonstopmode -halt-on-error doc-latex-switch.tex
+else skip "lualatex not installed"; fi
+
+name="pdfLaTeX -shell-escape (verbatim default)"
 if have pdflatex; then
   clean_frags
   run "$name" doc-latex.pdf -- pdflatex -shell-escape -interaction=nonstopmode -halt-on-error doc-latex.tex
 else skip "pdflatex not installed"; fi
 
-name="pdfLaTeX separate-run (no shell escape)"
+name="pdfLaTeX separate-run, verbatim (no shell escape)"
+if have pdflatex && have texlua; then
+  clean_frags
+  gen_frags plain
+  run "$name" doc-latex.pdf -- pdflatex -interaction=nonstopmode -halt-on-error doc-latex.tex
+else skip "pdflatex or texlua not installed"; fi
+
+name="pdfLaTeX separate-run, listings (no shell escape)"
 if have pdflatex && have texlua; then
   clean_frags
   gen_frags lstlisting
-  run "$name" doc-latex.pdf -- pdflatex -interaction=nonstopmode -halt-on-error doc-latex.tex
+  run "$name" doc-latex-listings.pdf -- pdflatex -interaction=nonstopmode -halt-on-error doc-latex-listings.tex
 else skip "pdflatex or texlua not installed"; fi
 
 # --------------------------------------------------------------------------

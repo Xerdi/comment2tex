@@ -9,11 +9,17 @@
 %
 %<*driver>
 \documentclass{ltxdoc}
-\usepackage{listings}
+\usepackage{listings}% optional companion; loaded here for the listings demo
 \usepackage{comment2tex}
 \GetFileInfo{comment2tex.sty}
-\lstset{basicstyle=\ttfamily\small,columns=fullflexible,
-  breaklines=true,showstringspaces=false}
+\begin{filecontents*}[overwrite]{c2t-demo.sh}
+## A short annotated Bash source.  Double-hash lines become prose,
+## everything else is code.
+echo "building"
+for f in *.tex; do
+  lualatex --interaction=nonstopmode "$f"
+done
+\end{filecontents*}
 \EnableCrossrefs
 \CodelineIndex
 \begin{document}
@@ -69,16 +75,28 @@
 % stay valid YAML: the annotated file remains loadable as-is, so \cs{includeyaml}
 % typesets the very file that ships --- no stripped copy, no risk of drift.
 %
-% The \LaTeX\ wrapper uses the \texttt{lstlisting} wrapper, so load and
-% configure \textsf{listings} (this package does that for you with a plain
-% default \cs{lstset}).  The Bash and Lua styles name \textsf{listings}' own
-% languages, but \texttt{listings} ships no \texttt{yaml} language.  This is
-% handled gracefully: if the document has not defined a \texttt{yaml} language,
-% \cs{includeyaml} installs an empty one, so the source typesets under the
-% default listing style (no YAML-specific highlighting) rather than faulting.
-% A document that \emph{does} define its own \texttt{yaml} language keeps it.
-% The plain \TeX\ wrapper uses a built-in verbatim environment instead, since
-% \textsf{listings} is \LaTeX-only.
+% \DescribeMacro{\ctxuselistings}
+% \DescribeMacro{\ctxuseverbatim}
+% \paragraph{Verbatim or listings.}  Under \LaTeX\ the include macros render in
+% one of two modes, switchable anywhere in the document.  The default is a
+% built-in \emph{numbered verbatim} --- no dependency, no setup, the same plain
+% look as this manual's own listings.  \cs{ctxuselistings} switches subsequent
+% includes to \textsf{listings} output (syntax highlighting, line breaking, the
+% full \cs{lstset} vocabulary); \cs{ctxuseverbatim} switches back.  Both obey
+% \TeX\ grouping, so a single block can opt in locally.  Requesting
+% \textsf{listings} without having loaded it warns once and stays on verbatim.
+% Like \textsf{ltxdoc}'s own \texttt{macrocode}, the verbatim renderer does not
+% break long lines; switch to \textsf{listings} mode (with \texttt{breaklines})
+% where wrapping matters.
+%
+% In \textsf{listings} mode the package applies a plain default \cs{lstset} for
+% you (\cs{AtBeginDocument}, only if \textsf{listings} is loaded).  The Bash and
+% Lua styles name \textsf{listings}' own languages, but \textsf{listings} ships
+% no \texttt{yaml} language; \cs{includeyaml} handles that gracefully by
+% installing an empty one if the document has not defined its own (so
+% \texttt{language=yaml} resolves to the default style rather than faulting).
+% The plain \TeX\ wrapper always uses a verbatim listing, since \textsf{listings}
+% is \LaTeX-only.
 %
 % \section{Engines and use cases}
 %
@@ -125,10 +143,29 @@
 %
 % Because the converter is itself a literate Lua file, the cleanest
 % demonstration is to let it document itself.  The remainder of this section is
-% produced by \cs{includelua}\marg{comment2tex.lua} --- the generated documentation
-% demonstrates the converter's functionality under Lua\LaTeX.
+% produced by \cs{includelua}\marg{comment2tex.lua} --- the generated
+% documentation demonstrates the converter's functionality under Lua\LaTeX.  It
+% renders through the default verbatim path (numbered, dependency-free), the same
+% look as the code listings elsewhere in this manual.
 %
 % \includelua{comment2tex.lua}
+%
+% \section{The listings variant}
+%
+% Everything above used the default verbatim renderer.  When a document loads
+% \textsf{listings}, \cs{ctxuselistings} switches the blocks that follow to it
+% (and \cs{ctxuseverbatim} switches back).  Below is one annotated Bash source
+% both ways: first the verbatim default, then the same file through
+% \textsf{listings}, which adds syntax highlighting.  Each renderer numbers from
+% one; only the presentation differs.
+%
+% \medskip\noindent\emph{Verbatim (default):}
+% \includebash{c2t-demo.sh}
+%
+% \medskip\noindent\emph{Listings (\cs{ctxuselistings}):}
+% \ctxuselistings
+% \includebash{c2t-demo.sh}
+% \ctxuseverbatim
 %
 % \section{Implementation}
 %
@@ -137,15 +174,25 @@
 % \changes{v1.0}{2026/06/08}{Initial version}
 % \changes{v1.1}{2026/07/01}{Add YAML style and \cs{includeyaml}}
 %
-% Announce the package and load \textsf{listings} with a neutral default style.
-%    \begin{macrocode}
+% Announce the package.  \textsf{listings} is an \emph{optional} companion, not
+% a hard dependency: if the document has loaded it, the include macros emit
+% \texttt{lstlisting} blocks and a neutral default \cs{lstset} is applied;
+% otherwise they fall back to a built-in numbered verbatim (below).  The
+% \cs{lstset} is deferred to \cs{AtBeginDocument} so it runs regardless of the
+% order in which the document loads \textsf{listings}, and only when it does.
+% \iffalse
 %<*package>
+% \fi
+% \setcounter{CodelineNo}{0}
+%    \begin{macrocode}
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{comment2tex}
   [2026/07/01 v1.1 Include annotated source files as LaTeX listings]
-\RequirePackage{listings}
-\lstset{basicstyle=\ttfamily\small,columns=fullflexible,
-  breaklines=true,showstringspaces=false}
+\AtBeginDocument{%
+  \@ifpackageloaded{listings}{%
+    \lstset{basicstyle=\ttfamily\small,columns=fullflexible,%
+      breaklines=true,showstringspaces=false}%
+  }{}}
 %    \end{macrocode}
 %
 % The name of the converter, overridable before loading if it is not on the
@@ -168,31 +215,123 @@
 \fi
 %    \end{macrocode}
 %
+% \begin{macro}{\ctxlisting}
+% \begin{macro}{\ctx@lineno}
+% \begin{macro}{\ctx@num}
+% The verbatim fallback, used when \textsf{listings} is absent.  It reuses the
+% converter's \texttt{plain} wrapper (which brackets each code block with
+% \cs{ctxlisting}\texttt{\%} and \cs{endctxlisting}) and mirrors the plain \TeX\
+% wrapper's line-by-line reader --- the one hook \textsf{listings} and
+% \textsf{fancyvrb} rely on and the kernel \texttt{verbatim} environment lacks
+% --- so every line can be numbered.  \cs{ctx@lineno} is a count reset once per
+% included file (by \cs{ctx@include}) and advanced \emph{globally} per line, so
+% it survives the group boundary between consecutive blocks: that reproduces
+% \textsf{listings}' \texttt{firstnumber=last}.  \cs{ctx@num} styles the number
+% like \textsf{ltxdoc}'s \texttt{macrocode}: \cs{reset@font}\cs{scriptsize},
+% right-aligned with \cs{llap} into a \cs{leftskip} gutter sized (via
+% \cs{settowidth}) for two digits, so wider counts hang into the margin just as
+% they do there.  \cs{ctx@uncatcode} switches to
+% the verbatim regime (\cs{dospecials} makes the specials \emph{and} the space
+% category~12, preserving indentation); \cs{ctx@gobble} discards the remainder of
+% the \cs{ctxlisting} line (its trailing \texttt{\%}) before \cs{ctx@grab}
+% collects real lines, exactly as the plain wrapper does.
+%    \begin{macrocode}
+\newcount\ctx@lineno
+\newdimen\ctx@numindent
+\providecommand\ctx@numstyle{\reset@font\scriptsize}
+\def\ctx@num{%
+  \global\advance\ctx@lineno\@ne
+  \llap{\ctx@numstyle\the\ctx@lineno\ }}
+\def\ctx@uncatcode{\let\do\@makeother\dospecials}
+\begingroup
+\catcode`\^^M=\active%
+\gdef\ctxlisting{%
+  \par\begingroup
+  \settowidth\ctx@numindent{\ctx@numstyle 00\ }%
+  \ctx@uncatcode
+  \parindent=\z@ \leftskip=\ctx@numindent \small\ttfamily
+  \catcode`\^^M=\active%
+  \ctx@gobble}%
+\gdef\ctx@gobble#1^^M{\ctx@grab}%
+\gdef\ctx@grab#1^^M{\ctx@checkend{#1}}%
+\endgroup
+\def\ctx@checkend#1{%
+  \def\ctx@tmp{#1}%
+  \ifx\ctx@tmp\ctx@endmark
+    \let\ctx@next\ctx@finish
+  \else
+    \leavevmode\ctx@num#1\par
+    \let\ctx@next\ctx@grab
+  \fi
+  \ctx@next}
+\def\ctx@finish{\par\endgroup}
+\begingroup
+\catcode`\|=0 \catcode`\\=12
+|gdef|ctx@endmark{\endctxlisting}%
+|endgroup
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\ctxuselistings}
+% \begin{macro}{\ctxuseverbatim}
+% The rendering mode is switchable anywhere in the document and defaults to the
+% numbered-verbatim fallback, so a document needs neither \textsf{listings} nor
+% any configuration to typeset a source.  \cs{ctxuselistings} routes subsequent
+% includes through \textsf{listings}; \cs{ctxuseverbatim} routes them back to the
+% verbatim fallback.  Both are ordinary declarations --- honour \TeX\ grouping,
+% so a group or environment can switch mode locally.  Requesting \textsf{listings}
+% while the package is not loaded warns once and stays on verbatim.
+%    \begin{macrocode}
+\newif\ifctx@lst
+\newif\ifctx@warned
+\newcommand\ctxuselistings{\ctx@lsttrue}
+\newcommand\ctxuseverbatim{\ctx@lstfalse}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}{\ctx@include}
-% Strip the extension, build the output name, generate it the best way the
-% engine allows, then input it.  \cs{ctx@strip} keeps everything before the
-% first dot.
+% Strip the extension, build the output name, pick the wrapper from the current
+% mode --- \texttt{lstlisting} in \textsf{listings} mode (falling back to the
+% numbered-verbatim \texttt{plain} wrapper, with a one-time warning, when
+% \textsf{listings} is not loaded), otherwise \texttt{plain} --- generate it the
+% best way the engine allows, then input it.  The verbatim path resets the line
+% counter once per file.  \cs{ctx@strip} keeps everything before the first dot.
 %    \begin{macrocode}
 \def\ctx@strip#1.#2\ctx@stop{#1}
 \newcommand\ctx@include[2]{%
   \edef\ctx@in{#2}%
   \edef\ctx@base{\ctx@strip#2\ctx@stop}%
   \edef\ctx@out{\ctx@base.c2t.tex}%
+  \ifctx@lst
+    \@ifpackageloaded{listings}%
+      {\def\ctx@wrap{lstlisting}}%
+      {\ifctx@warned\else \ctx@warnedtrue
+         \PackageWarning{comment2tex}{\string\ctxuselistings\space requested but
+           listings is not loaded; using the verbatim fallback}%
+       \fi
+       \def\ctx@wrap{plain}\global\ctx@lineno\z@}%
+  \else
+    \def\ctx@wrap{plain}\global\ctx@lineno\z@
+  \fi
   \ifdefined\directlua
-    \directlua{comment2tex.write("#1","lstlisting",
+    \directlua{comment2tex.write("#1","\ctx@wrap",
       "\luaescapestring{\ctx@in}","\luaescapestring{\ctx@out}")}%
   \else
     \ifdefined\pdfshellescape
       \ifnum\pdfshellescape>0\relax
         \immediate\write18{texlua \ctxscript\space
-          --style #1 --wrapper lstlisting -o \ctx@out\space \ctx@in}%
+          --style #1 --wrapper \ctx@wrap\space -o \ctx@out\space \ctx@in}%
       \fi
     \fi
   \fi
   \IfFileExists{\ctx@out}{\input{\ctx@out}}{%
     \PackageError{comment2tex}{Converted file \ctx@out\space not found}%
       {Use LuaLaTeX, run pdflatex with -shell-escape, or pre-build it:^^J%
-       texlua \ctxscript\space --style #1 -o \ctx@out\space \ctx@in}}%
+       texlua \ctxscript\space --style #1 --wrapper \ctx@wrap\space
+       -o \ctx@out\space \ctx@in}}%
 }
 %    \end{macrocode}
 % \end{macro}
@@ -202,20 +341,29 @@
 % \begin{macro}{\includeyaml}
 % The three public entry points fix the style.  \textsf{listings} provides the
 % \texttt{bash} and \texttt{Lua} languages itself, but ships no \texttt{yaml}
-% one, so \cs{includeyaml} first ensures a \texttt{yaml} language exists: if the
-% document has not defined one, \cs{ctx@ensureyaml} installs an \emph{empty}
-% language so the emitted \texttt{language=yaml} resolves to the default listing
-% style (no YAML-specific highlighting) instead of faulting.  The test peeks at
-% \textsf{listings}' own language store (\cs{lstlang@yaml\$}); a document that
-% defines its own \texttt{yaml} language is left untouched.
+% one, so in \textsf{listings} mode \cs{includeyaml} first ensures a \texttt{yaml}
+% language exists: if the document has loaded \textsf{listings} but not defined
+% one, \cs{ctx@ensureyaml} installs an \emph{empty} language so the emitted
+% \texttt{language=yaml} resolves to the default listing style (no YAML-specific
+% highlighting) instead of faulting.  The test peeks at \textsf{listings}' own
+% language store (\cs{lstlang@yaml\$}); a document that defines its own
+% \texttt{yaml} language is left untouched.  In verbatim mode (the default) there
+% is no language, so the guard is a no-op and never touches the \textsf{listings}
+% internals.
 %    \begin{macrocode}
 \newcommand\ctx@ensureyaml{%
-  \@ifundefined{\@lst lang@yaml$}{\lstdefinelanguage{yaml}{}}{}}
+  \ifctx@lst
+    \@ifpackageloaded{listings}{%
+      \@ifundefined{\@lst lang@yaml$}{\lstdefinelanguage{yaml}{}}{}%
+    }{}%
+  \fi}
 \newcommand\includebash[1]{\ctx@include{bash}{#1}}
 \newcommand\includelua[1]{\ctx@include{lua}{#1}}
 \newcommand\includeyaml[1]{\ctx@ensureyaml\ctx@include{yaml}{#1}}
-%</package>
 %    \end{macrocode}
+% \iffalse
+%</package>
+% \fi
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -227,8 +375,11 @@
 % Control-sequence names are letters only (no digits, no \texttt{@}).
 %
 % Locate and load the converter under Lua\TeX, exactly as the package does.
-%    \begin{macrocode}
+% \iffalse
 %<*plain>
+% \fi
+% \setcounter{CodelineNo}{0}
+%    \begin{macrocode}
 \def\ctxscript{comment2tex.lua}
 \expandafter\ifx\csname directlua\endcsname\relax\else
   \directlua{
@@ -261,13 +412,17 @@
 % \end{macro}
 %
 % \begin{macro}{\ctxlisting}
+% \begin{macro}{\ctxgobble}
 % \begin{macro}{\ctxgrab}
-% \cs{ctxlisting} (emitted by the converter as \verb+\ctxlisting%+, the trailing
-% comment swallowing its own line end) opens a group, switches to the verbatim
-% regime with an active end-of-line, and starts grabbing lines.  \cs{ctxgrab}
-% collects one line up to the active \verb+^^M+ and hands it on.  Every physical
-% line in this group ends with \verb+%+ so no stray active end-of-line leaks
-% into the definitions.
+% \cs{ctxlisting} (emitted by the converter as \verb+\ctxlisting%+) opens a
+% group, switches to the verbatim regime with an active end-of-line, and starts
+% grabbing lines.  The trailing \verb+%+ on the begin line \emph{cannot} be
+% relied on to swallow that line end: \cs{ctxuncatcode} has already made \verb+%+
+% category~12 by the time the scanner reaches it, so it would be grabbed as a
+% spurious first line.  \cs{ctxgobble} therefore discards everything up to and
+% including the first active \verb+^^M+ (the remainder of the begin line) before
+% \cs{ctxgrab} collects the first real line.  \cs{ctxgrab} collects one line up
+% to the active \verb+^^M+ and hands it on.
 %    \begin{macrocode}
 \begingroup
 \catcode`\^^M=\active%
@@ -276,10 +431,12 @@
   \ctxuncatcode%
   \parindent=0pt \tt%
   \catcode`\^^M=\active%
-  \ctxgrab}%
+  \ctxgobble}%
+\gdef\ctxgobble#1^^M{\ctxgrab}%
 \gdef\ctxgrab#1^^M{\ctxcheckend{#1}}%
 \endgroup
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -341,8 +498,10 @@
 \def\includebash{\ctxinclude{bash}}
 \def\includelua{\ctxinclude{lua}}
 \def\includeyaml{\ctxinclude{yaml}}
-%</plain>
 %    \end{macrocode}
+% \iffalse
+%</plain>
+% \fi
 % \end{macro}
 % \end{macro}
 % \end{macro}

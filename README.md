@@ -14,11 +14,20 @@ for LaTeX/LuaLaTeX and one for plain TeX — both providing `\includebash`,
 `\includelua` and `\includeyaml`. Under LuaLaTeX the conversion runs in process;
 under pdfLaTeX it uses `--shell-escape` or a separate pre-build run.
 
-`listings` provides the `bash` and `Lua` languages itself, but ships no `yaml`
-language. `\includeyaml` handles this gracefully: if the document has not
-defined a `yaml` language, it installs an empty one so the source typesets under
-the default listing style (no YAML-specific highlighting) instead of faulting. A
-document that defines its own `yaml` language keeps it.
+Under LaTeX the include macros render in one of two modes, switchable anywhere
+in the document. The default is a built-in **numbered verbatim** — no
+dependency, no setup. `\ctxuselistings` switches subsequent includes to
+`listings` output (syntax highlighting, line breaking, the full `\lstset`
+vocabulary); `\ctxuseverbatim` switches back. Requesting `listings` without
+having loaded it warns once and stays on verbatim. Like ltxdoc's `macrocode`,
+the verbatim renderer does not break long lines.
+
+In `listings` mode the package applies a plain default `\lstset` for you (only if
+`listings` is loaded). `listings` provides the `bash` and `Lua` languages but
+ships no `yaml` one; `\includeyaml` handles that by installing an empty `yaml`
+language if the document has not defined its own (so `language=yaml` resolves to
+the default style rather than faulting). The plain TeX wrapper always renders
+verbatim, since `listings` is LaTeX-only.
 
 ## Installation
 

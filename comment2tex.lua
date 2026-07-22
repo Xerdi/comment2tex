@@ -73,11 +73,13 @@ end
 function M.resolve(o)
   local style = M.styles[o.style]
   if not style then
-    error("comment2tex: unknown style: " .. tostring(o.style) .. " (expected bash, lua or yaml)")
+    error("comment2tex: unknown style: " .. tostring(o.style)
+      .. " (expected bash, lua or yaml)")
   end
   local wrapper = M.wrappers[o.wrapper]
   if not wrapper then
-    error("comment2tex: unknown wrapper: " .. tostring(o.wrapper) .. " (expected lstlisting or plain)")
+    error("comment2tex: unknown wrapper: " .. tostring(o.wrapper)
+      .. " (expected lstlisting or plain)")
   end
   o.comment  = o.comment  or style.comment
   o.language = o.language or style.language
@@ -133,7 +135,9 @@ end
 --- as a string; \texttt{write\_file} sends it to \texttt{outfile}.
 function M.read_lines(path)
   local fh, err = io.open(path, "r")
-  if not fh then error("comment2tex: cannot open input: " .. tostring(err)) end
+  if not fh then
+    error("comment2tex: cannot open input: " .. tostring(err))
+  end
   local data = fh:read("*a")
   fh:close()
   local lines = {}
@@ -156,7 +160,9 @@ end
 function M.write_file(infile, outfile, o)
   local text = M.convert_file(infile, o)
   local fh, err = io.open(outfile, "w")
-  if not fh then error("comment2tex: cannot open output: " .. tostring(err)) end
+  if not fh then
+    error("comment2tex: cannot open output: " .. tostring(err))
+  end
   fh:write(text)
   fh:close()
   return outfile
@@ -167,7 +173,8 @@ end
 --- \texttt{infile} to \texttt{outfile} for the given style and wrapper, entirely in
 --- process.  Keeping the signature positional keeps the \TeX\ side trivial.
 function M.write(style, wrapper, infile, outfile)
-  return M.write_file(infile, outfile, M.new_opts{ style = style, wrapper = wrapper })
+  return M.write_file(infile, outfile,
+    M.new_opts{ style = style, wrapper = wrapper })
 end
 
 --- \subsubsection{Command-line interface}
@@ -181,8 +188,8 @@ Usage: comment2tex.lua [options] <input>
 Convert a source file with embedded LaTeX doc-comments to LaTeX.
 
 Options:
-  -s, --style NAME       preset: bash (##), lua (---) or yaml (##)  [default: bash]
-  -w, --wrapper NAME     listing wrapper: lstlisting or plain  [default: lstlisting]
+  -s, --style NAME       bash (##), lua (---) or yaml (##) [default: bash]
+  -w, --wrapper NAME     lstlisting or plain [default: lstlisting]
   -c, --comment PREFIX   doc-comment prefix marking a doc line
   -l, --language LANG    listing language for code blocks
   -b, --begin TEMPLATE   listing begin template (@LANG@, @CONT@)
