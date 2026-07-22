@@ -21,6 +21,7 @@ WRAPPERS = comment2tex.sty comment2tex.tex
 DOC      = comment2tex.pdf
 README   = README.md
 TESTSH   = comment2tex-test.sh
+WORKFLOWS = $(wildcard .github/workflows/*.yml)
 
 ## \texttt{FRAGS} names the standalone \texttt{.c2t.tex} fragments a source weaves
 ## to; the converter documents itself with the \texttt{-{}-{}-} Lua style.
@@ -53,7 +54,7 @@ $(WRAPPERS): $(DTX) $(INS)
 ## cross-references settle.  It depends on the test suite too, so the \emph{Testing}
 ## section restages whenever the harness changes.
 doc: $(DOC)
-$(DOC): $(DTX) comment2tex.sty comment2tex.lua $(TESTSH)
+$(DOC): $(DTX) comment2tex.sty comment2tex.lua $(TESTSH) $(WORKFLOWS)
 	$(LATEXMK) $(PVC) --lualatex --interaction=nonstopmode $(DTX)
 
 ## \texttt{test} runs the cross-engine suite (\texttt{comment2tex-test.sh}).

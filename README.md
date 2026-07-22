@@ -27,6 +27,7 @@ subsequent includes into `listings` output and `\ctxuseverbatim` switches back.
 | `comment2tex.lua` | The converter (hand-written; its `---` lines are Lua comments). |
 | `comment2tex-test.sh` | Cross-engine test suite (development only). |
 | `Makefile` | Build, test and packaging targets (`make help`). |
+| `.github/workflows/` | CI/CD: `build.yml` (test + docs on push/PR) and `publish.yml` (draft release on tag). |
 | `comment2tex.sty`, `comment2tex.tex` | **Generated** from the `.ins` (git-ignored). |
 | `comment2tex.pdf` | **Generated** manual from the `.dtx`. |
 
@@ -66,10 +67,10 @@ package:
 
 - `comment2tex.sty`, `comment2tex.tex` — generated from `comment2tex.ins`; CTAN
   and TeX Live regenerate them, so shipping them would ship derived files.
-- `Makefile`, `comment2tex-test.sh` — the build system and test suite. The
-  manual's *The build* and *Testing* sections `\includemake`/`\includebash` them
-  only when present (guarded by `\IfFileExists`), so the bundled sources still
-  build the PDF without them.
+- `Makefile`, `comment2tex-test.sh`, `.github/workflows/` — the build system, test
+  suite and CI/CD. The manual's *The build*, *Testing* and *CI/CD* sections
+  `\includemake`/`\includebash`/`\includeyaml` them only when present (guarded by
+  `\IfFileExists`), so the bundled sources still build the PDF without them.
 - Intermediate TeX output (`*.aux`, `*.log`, `*.c2t.tex`, …) and version-control
   files.
 

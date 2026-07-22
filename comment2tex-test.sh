@@ -65,8 +65,8 @@ OPTS="$NS -halt-on-error"
 ## ships rather than a stale build.  A wrapper that will not build is a hard error,
 ## not a skip.
 log "workspace: $WORK"
-cp "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" "$SRC/comment2tex.ins" \
-   "$SRC/Makefile" "$SRC/comment2tex-test.sh" "$WORK"/ || {
+cp -r "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" "$SRC/comment2tex.ins" \
+   "$SRC/Makefile" "$SRC/comment2tex-test.sh" "$SRC/.github" "$WORK"/ || {
   log "FATAL: cannot find comment2tex sources next to this script"; exit 2; }
 
 cd "$WORK" || exit 2

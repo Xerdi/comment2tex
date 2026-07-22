@@ -149,6 +149,8 @@ done
 %   \textsf{listings} --- see \emph{\nameref{sec:listings}}.
 % \item \cs{includebash} on the cross-engine test suite --- see
 %   \emph{\nameref{sec:testing}}.
+% \item \cs{includeyaml} on the GitHub Actions workflows --- see
+%   \emph{\nameref{sec:cicd}}.
 % \end{itemize}
 % Together they cover all four styles and both render modes.  Even the code in
 % \emph{\nameref{sec:impl}} is typeset automatically --- there by \textsf{ltxdoc}'s
@@ -407,14 +409,18 @@ done
 % numbered-verbatim \texttt{plain} wrapper, with a one-time warning, when
 % \textsf{listings} is not loaded), otherwise \texttt{plain} --- generate it the
 % best way the engine allows, then input it.  The verbatim path resets the line
-% counter once per file.  \cs{ctx@strip} keeps everything before the first dot;
-% appending a sentinel dot to the argument makes an extensionless name (such as a
-% \texttt{Makefile}) keep its whole self.
+% counter once per file.  \cs{ctx@stripdir} drops any directory part and
+% \cs{ctx@strip} then keeps everything before the first dot, so a path such as
+% \texttt{.github/workflows/build.yml} yields the base \texttt{build}; the sentinel
+% dot still lets an extensionless name (a \texttt{Makefile}) keep its whole self.
 %    \begin{macrocode}
 \def\ctx@strip#1.#2\ctx@stop{#1}
+\def\ctx@stripdir#1{\ctx@sd#1/\ctx@sdstop}
+\def\ctx@sd#1/#2\ctx@sdstop{\ifx\relax#2\relax#1\else\ctx@sd#2\ctx@sdstop\fi}
 \newcommand\ctx@include[2]{%
   \edef\ctx@in{#2}%
-  \edef\ctx@base{\ctx@strip#2.\ctx@stop}%
+  \edef\ctx@base{\ctx@stripdir{#2}}%
+  \edef\ctx@base{\expandafter\ctx@strip\ctx@base.\ctx@stop}%
   \edef\ctx@out{\ctx@base.c2t.tex}%
   \ifctx@lst
     \@ifpackageloaded{listings}%
@@ -585,9 +591,12 @@ done
 % is still missing.
 %    \begin{macrocode}
 \def\ctxstrip#1.#2\ctxstop{#1}
+\def\ctxstripdir#1{\ctxsd#1/\ctxsdstop}
+\def\ctxsd#1/#2\ctxsdstop{\ifx\relax#2\relax#1\else\ctxsd#2\ctxsdstop\fi}
 \def\ctxinclude#1#2{%
   \edef\ctxin{#2}%
-  \edef\ctxbase{\ctxstrip#2.\ctxstop}%
+  \edef\ctxbase{\ctxstripdir{#2}}%
+  \edef\ctxbase{\expandafter\ctxstrip\ctxbase.\ctxstop}%
   \edef\ctxout{\ctxbase.c2t.tex}%
   \expandafter\ifx\csname directlua\endcsname\relax
     \expandafter\ifx\csname pdfshellescape\endcsname\relax\else
@@ -645,6 +654,24 @@ done
 %   \includebash{comment2tex-test.sh}%
 % }{\par\emph{(\texttt{comment2tex-test.sh} is not included in this
 %   distribution; see the package's development repository.)}\par}
+%
+% \section{CI/CD}\label{sec:cicd}
+%
+% Two GitHub Actions workflows under \texttt{.github/workflows/} keep the package
+% honest, and --- like the \texttt{Makefile} and the test suite --- they are
+% annotated YAML, typeset here by \cs{includeyaml} (the fourth include macro, shown
+% at last, on the package's own continuous-integration setup).  \emph{build} tests
+% and typesets on every push and pull request; \emph{publish} bundles for CTAN and
+% drafts a release on every tag.  Both are development artefacts, not shipped, so each
+% listing appears only when its file is present.
+%
+% \IfFileExists{.github/workflows/build.yml}{%
+%   \includeyaml{.github/workflows/build.yml}%
+% }{\par\emph{(the workflows are not included in this distribution; see the package's
+%   development repository.)}\par}
+% \IfFileExists{.github/workflows/publish.yml}{%
+%   \includeyaml{.github/workflows/publish.yml}%
+% }{}
 %
 % \Finale
 \endinput
