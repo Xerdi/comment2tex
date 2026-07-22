@@ -59,7 +59,7 @@ done
 % converter, and input the result, so a document can pull in annotated sources
 % without a manual build step.
 %
-% \section{Usage}
+% \section{Usage}\label{sec:usage}
 %
 % \DescribeMacro{\includebash}
 % \DescribeMacro{\includelua}
@@ -93,13 +93,16 @@ done
 % with \texttt{breaklines}) where wrapping matters.
 %
 % In \textsf{listings} mode the package applies a plain default \cs{lstset} for
-% you (\cs{AtBeginDocument}, only if \textsf{listings} is loaded).  The Bash and
-% Lua styles name \textsf{listings}' own languages, but \textsf{listings} ships
-% no \texttt{yaml} language; \cs{includeyaml} handles that gracefully by
-% installing an empty one if the document has not defined its own (so
-% \texttt{language=yaml} resolves to the default style rather than faulting).
-% The plain \TeX\ wrapper always uses a verbatim listing, since \textsf{listings}
-% is \LaTeX-only.
+% you (\cs{AtBeginDocument}, only if \textsf{listings} is loaded).  The Bash, Lua
+% and Make styles name languages \textsf{listings} ships itself (\texttt{make} is
+% loaded on demand), so they need no help.  Only \texttt{yaml} is missing from
+% \textsf{listings}; \cs{includeyaml} handles that gracefully by installing an
+% empty \texttt{yaml} language if the document has not defined its own (so
+% \texttt{language=yaml} resolves to the default style rather than faulting).  It
+% does \emph{not} do the same for Make: since \texttt{make} exists but loads
+% lazily, pre-installing an empty one would shadow the real highlighter.  The plain
+% \TeX\ wrapper always uses a verbatim listing, since \textsf{listings} is
+% \LaTeX-only.
 %
 % \subsection{Examples in this manual}\label{sec:examples}
 %
@@ -203,6 +206,40 @@ done
 % \ctxuselistings
 % \includebash{c2t-demo.sh}
 % \ctxuseverbatim
+%
+% \subsection{Styling}
+%
+% The two modes differ in capability, not just appearance.  The verbatim default is
+% self-contained: numbered (a \cs{reset@font}\cs{scriptsize} gutter auto-sized to
+% the file's line count), code in \cs{small}\cs{ttfamily}, tabs expanded --- but no
+% syntax highlighting and, like \textsf{ltxdoc}'s \texttt{macrocode}, no long-line
+% breaking.  \textsf{listings} mode gives that self-containment up for the full
+% \textsf{listings} feature set: per-language highlighting, line breaking, and the
+% whole \cs{lstset} vocabulary.
+%
+% The converter bakes only the essentials into each \texttt{lstlisting} block ---
+% \texttt{language=}\meta{lang}, \texttt{numbers=left}, and (on every block after
+% the first) \texttt{firstnumber=last}, so a file's line numbers run continuously.
+% Everything else is left to a document-wide \cs{lstset}.  So that listings mode
+% looks sensible with no configuration, \textsf{comment2tex} applies exactly one
+% default, \cs{AtBeginDocument} and only when \textsf{listings} is actually loaded:
+% \begin{itemize}
+% \item \texttt{basicstyle} is \cs{ttfamily}\cs{small}, the monospace body font;
+% \item \texttt{columns=fullflexible}, natural glyph widths rather than a rigid grid;
+% \item \texttt{breaklines=true}, wrapping long lines (the verbatim renderer cannot);
+% \item \texttt{showstringspaces=false}, no visible-space markers inside strings.
+% \end{itemize}
+% It sets nothing else --- no colours, no keyword or comment styles --- so the
+% default is deliberately plain, close to the verbatim look.
+%
+% To change it, add your own \cs{lstset} \emph{after} \cs{begin}\marg{document} (or
+% in a begin-document hook registered after \textsf{comment2tex}); the four keys
+% above are applied at begin-document, so a preamble \cs{lstset} of the same keys is
+% overridden.  Keys \textsf{comment2tex} never sets --- keyword, comment and number
+% styles, colours, and the like --- may go anywhere and survive.  \textsf{listings}
+% has no \texttt{yaml} language; to highlight YAML, define one before the first
+% \cs{includeyaml} (\emph{\nameref{sec:usage}}); otherwise an empty one is installed
+% and YAML falls back to the plain default.
 %
 % \section{Implementation}\label{sec:impl}
 %
