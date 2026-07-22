@@ -60,14 +60,15 @@ frags: $(FRAGS)
 	$(C2T) --style lua -o $@ $<
 
 ## package: build a CTAN-ready zip (sources + PDF under a comment2tex/ dir).
-##          The shipped comment2tex.lua has its "---" doc-comments stripped so its
-##          line numbers match the listing numbers in the documentation.
+##          The shipped comment2tex.lua has its "---" doc-comments removed with
+##          `comment2tex --tangle` (style-aware, no sed dependency), so its line
+##          numbers match the listing numbers in the documentation.
 package: $(NAME).zip
 $(NAME).zip: $(DISTFILES) $(LUA_SRC)
 	$(RM) -r $(NAME) $(NAME).zip
 	mkdir $(NAME)
 	cp $(DISTFILES) $(NAME)/
-	sed '/^---/d' $(LUA_SRC) > $(NAME)/$(LUA_SRC)
+	$(C2T) --style lua --tangle -o $(NAME)/$(LUA_SRC) $(LUA_SRC)
 	zip -r $(NAME).zip $(NAME)
 	$(RM) -r $(NAME)
 

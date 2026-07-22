@@ -197,6 +197,17 @@ if have texlua; then
   else
     log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
   fi
+
+  # --tangle strips doc-comments, style-aware: parity with the sed it replaces.
+  name="texlua CLI --tangle (== sed, per style)"
+  if diff -q <(sed '/^##/d'  demo-bash.sh) <($C2T --style bash --tangle demo-bash.sh) >/dev/null &&
+     diff -q <(sed '/^---/d' demo-lua.lua) <($C2T --style lua  --tangle demo-lua.lua)  >/dev/null &&
+     diff -q <(sed '/^##/d'  demo-yaml.yml) <($C2T --style yaml --tangle demo-yaml.yml) >/dev/null; then
+    log "PASS  $name"; pass=$((pass + 1))
+  else
+    log "FAIL  $name"; fail=$((fail + 1)); failed_names+=("$name")
+  fi
+
   # Parity with the original shell scripts, when they are present.
   if [ -x "$SRC/bash2tex.sh" ]; then
     name="texlua CLI parity vs bash2tex.sh"

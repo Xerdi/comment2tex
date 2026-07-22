@@ -129,6 +129,22 @@ function M.convert(o, lines, emit)
   close_code()
 end
 
+--- \subsubsection{Tangling}
+--- The inverse of weaving: \texttt{tangle} drops every doc-comment line and emits the
+--- rest of the source unchanged, so an annotated file yields its runnable form without a
+--- separate \texttt{sed}/\texttt{grep} pass.  The lines it keeps are exactly the lines
+--- \texttt{convert} would have numbered, so a tangled file and its typeset listing agree
+--- on line numbers.
+function M.tangle(o, lines, emit)
+  local prefix = o.comment
+  local plen = #prefix
+  for _, line in ipairs(lines) do
+    if line:sub(1, plen) ~= prefix then
+      emit(line)
+    end
+  end
+end
+
 --- \subsubsection{File helpers}
 --- \texttt{read\_lines} slurps a file and splits it into lines, keeping a final
 --- unterminated line if present.  \texttt{convert\_file} returns the converted \LaTeX\
@@ -154,6 +170,13 @@ function M.convert_file(path, o)
   o = M.resolve(o or M.new_opts())
   local out = {}
   M.convert(o, M.read_lines(path), function(line) out[#out + 1] = line end)
+  return table.concat(out, "\n") .. "\n"
+end
+
+function M.tangle_file(path, o)
+  o = M.resolve(o or M.new_opts())
+  local out = {}
+  M.tangle(o, M.read_lines(path), function(line) out[#out + 1] = line end)
   return table.concat(out, "\n") .. "\n"
 end
 
@@ -185,7 +208,8 @@ local function usage(stream)
   stream:write([[
 Usage: comment2tex.lua [options] <input>
 
-Convert a source file with embedded LaTeX doc-comments to LaTeX.
+Weave a source with embedded LaTeX doc-comments into LaTeX, or with
+--tangle strip the doc-comments back to the runnable source.
 
 Options:
   -s, --style NAME       bash (##), lua (---) or yaml (##) [default: bash]
@@ -194,7 +218,8 @@ Options:
   -l, --language LANG    listing language for code blocks
   -b, --begin TEMPLATE   listing begin template (@LANG@, @CONT@)
   -e, --end TEMPLATE     listing end template
-  -o, --output FILE      write LaTeX here instead of stdout
+  -t, --tangle           strip doc-comments; emit runnable source
+  -o, --output FILE      write output here instead of stdout
   -h, --help             show this help
 
 Templates substitute @LANG@ with the language and @CONT@ with
@@ -209,6 +234,7 @@ end
 
 function M.main(argv)
   local over = {}
+  local tangle = false
   local input
   local i = 1
   local function value(flag)
@@ -233,6 +259,8 @@ function M.main(argv)
       over.begin = value(a)
     elseif a == "-e" or a == "--end" then
       over.finish = value(a)
+    elseif a == "-t" or a == "--tangle" then
+      tangle = true
     elseif a == "-o" or a == "--output" then
       over.output = value(a)
     elseif a == "--" then
@@ -253,9 +281,15 @@ function M.main(argv)
 
   local ok, err = pcall(function()
     local o = M.resolve(M.new_opts(over))
-    local text = M.convert_file(input, o)
+    local text = tangle and M.tangle_file(input, o)
+      or M.convert_file(input, o)
     if over.output then
-      M.write_file(input, over.output, o)
+      local fh, e = io.open(over.output, "w")
+      if not fh then
+        error("comment2tex: cannot open output: " .. tostring(e))
+      end
+      fh:write(text)
+      fh:close()
     else
       io.stdout:write(text)
     end
