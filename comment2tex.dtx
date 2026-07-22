@@ -38,7 +38,7 @@ done
 % special comments: the comments become ordinary \LaTeX, the rest becomes a
 % listing.  It ships a Lua converter and two \TeX\ wrappers --- one for
 % \LaTeX/Lua\LaTeX\ and one for plain \TeX\ --- both providing \cs{includebash},
-% \cs{includelua} and \cs{includeyaml}.
+% \cs{includelua}, \cs{includeyaml} and \cs{includemake}.
 % \end{abstract}
 %
 % \tableofcontents
@@ -46,30 +46,31 @@ done
 % \section{Introduction}
 %
 % A source file may document itself: lines beginning with a chosen
-% \emph{doc-comment} prefix are prose, everything else is code.  For Bash the
-% prefix is a double hash (\texttt{\#\#}); for Lua it is a triple dash
-% (\texttt{-{}-{}-}); for YAML it is again a double hash (\texttt{\#\#}, itself a
-% YAML comment).  The converter \texttt{comment2tex.lua} turns such a file
-% into \LaTeX: doc lines are emitted verbatim (minus the prefix) and runs of
-% code are wrapped in a listing.
+% \emph{doc-comment} prefix are prose, everything else is code.  For Bash, YAML
+% and Make the prefix is a double hash (\texttt{\#\#}, itself a comment in all
+% three); for Lua it is a triple dash (\texttt{-{}-{}-}).  The converter
+% \texttt{comment2tex.lua} turns such a file into \LaTeX: doc lines are emitted
+% verbatim (minus the prefix) and runs of code are wrapped in a listing.
 %
-% This package is the \TeX\ front end.  \cs{includebash}, \cs{includelua} and
-% \cs{includeyaml} take a source file, run it through the converter, and input
-% the result, so a document can pull in annotated sources without a manual build
-% step.
+% This package is the \TeX\ front end.  \cs{includebash}, \cs{includelua},
+% \cs{includeyaml} and \cs{includemake} take a source file, run it through the
+% converter, and input the result, so a document can pull in annotated sources
+% without a manual build step.
 %
 % \section{Usage}
 %
 % \DescribeMacro{\includebash}
 % \DescribeMacro{\includelua}
 % \DescribeMacro{\includeyaml}
+% \DescribeMacro{\includemake}
 % \cs{includebash}\marg{file} typesets a Bash source (doc prefix \texttt{\#\#});
-% \cs{includelua}\marg{file} typesets a Lua source (doc prefix
-% \texttt{-{}-{}-}); \cs{includeyaml}\marg{file} typesets a YAML source (doc
-% prefix \texttt{\#\#}).  All three derive an output name by replacing the file's
-% extension with \texttt{.c2t.tex}, generate that file with the appropriate
-% \emph{style} and \emph{wrapper}, and \cs{input} it.  The \meta{file} must
-% carry a single extension.
+% \cs{includelua}\marg{file} a Lua source (doc prefix \texttt{-{}-{}-});
+% \cs{includeyaml}\marg{file} a YAML source and \cs{includemake}\marg{file} a
+% Makefile (both doc prefix \texttt{\#\#}).  All four derive an output name by
+% replacing the file's extension with \texttt{.c2t.tex}, generate that file with
+% the appropriate \emph{style} and \emph{wrapper}, and \cs{input} it.  The
+% \meta{file} carries at most one extension; an extensionless name (such as a
+% \texttt{Makefile}) is fine and keeps its whole self as the base.
 %
 % Because \texttt{\#\#} is an ordinary YAML comment, the double-hash doc lines
 % stay valid YAML: the annotated file remains loadable as-is, so \cs{includeyaml}
@@ -138,6 +139,21 @@ done
 %
 % In every case the generated file is \meta{base}\texttt{.c2t.tex}, so the
 % in-process, shell-escape and separate-run routes are interchangeable.
+%
+% \section{The build}
+%
+% The package's own build is a \texttt{Makefile}, and --- like the converter and
+% the test suite --- it is an annotated source, typeset here by \cs{includemake}
+% (the Make style, doc prefix \texttt{\#\#}).  It drives the converter under
+% \texttt{texlua}, builds this manual, and assembles the CTAN upload; its
+% \texttt{\#\#} lines are the prose you read, the rest is the Make code that runs.
+%
+% Like the test suite, the \texttt{Makefile} is a development artefact and is not
+% part of the distribution, so the listing appears only when it is present.
+% \IfFileExists{Makefile}{%
+%   \includemake{Makefile}%
+% }{\par\emph{(the \texttt{Makefile} is not included in this distribution; see the
+%   package's development repository.)}\par}
 %
 % \section{The converter, by example}
 %
@@ -300,12 +316,14 @@ done
 % numbered-verbatim \texttt{plain} wrapper, with a one-time warning, when
 % \textsf{listings} is not loaded), otherwise \texttt{plain} --- generate it the
 % best way the engine allows, then input it.  The verbatim path resets the line
-% counter once per file.  \cs{ctx@strip} keeps everything before the first dot.
+% counter once per file.  \cs{ctx@strip} keeps everything before the first dot;
+% appending a sentinel dot to the argument makes an extensionless name (such as a
+% \texttt{Makefile}) keep its whole self.
 %    \begin{macrocode}
 \def\ctx@strip#1.#2\ctx@stop{#1}
 \newcommand\ctx@include[2]{%
   \edef\ctx@in{#2}%
-  \edef\ctx@base{\ctx@strip#2\ctx@stop}%
+  \edef\ctx@base{\ctx@strip#2.\ctx@stop}%
   \edef\ctx@out{\ctx@base.c2t.tex}%
   \ifctx@lst
     \@ifpackageloaded{listings}%
@@ -341,17 +359,18 @@ done
 % \begin{macro}{\includebash}
 % \begin{macro}{\includelua}
 % \begin{macro}{\includeyaml}
-% The three public entry points fix the style.  \textsf{listings} provides the
-% \texttt{bash} and \texttt{Lua} languages itself, but ships no \texttt{yaml}
-% one, so in \textsf{listings} mode \cs{includeyaml} first ensures a \texttt{yaml}
-% language exists: if the document has loaded \textsf{listings} but not defined
-% one, \cs{ctx@ensureyaml} installs an \emph{empty} language so the emitted
-% \texttt{language=yaml} resolves to the default listing style (no YAML-specific
-% highlighting) instead of faulting.  The test peeks at \textsf{listings}' own
-% language store (\cs{lstlang@yaml\$}); a document that defines its own
-% \texttt{yaml} language is left untouched.  In verbatim mode (the default) there
-% is no language, so the guard is a no-op and never touches the \textsf{listings}
-% internals.
+% \begin{macro}{\includemake}
+% The four public entry points fix the style.  \textsf{listings} provides the
+% \texttt{bash}, \texttt{Lua} and \texttt{make} languages itself, but ships no
+% \texttt{yaml} one, so in \textsf{listings} mode \cs{includeyaml} first ensures a
+% \texttt{yaml} language exists: if the document has loaded \textsf{listings} but
+% not defined one, \cs{ctx@ensureyaml} installs an \emph{empty} language so the
+% emitted \texttt{language=yaml} resolves to the default listing style (no
+% YAML-specific highlighting) instead of faulting.  The test peeks at
+% \textsf{listings}' own language store (\cs{lstlang@yaml\$}); a document that
+% defines its own \texttt{yaml} language is left untouched.  In verbatim mode (the
+% default) there is no language, so the guard is a no-op and never touches the
+% \textsf{listings} internals.
 %    \begin{macrocode}
 \newcommand\ctx@ensureyaml{%
   \ifctx@lst
@@ -362,10 +381,12 @@ done
 \newcommand\includebash[1]{\ctx@include{bash}{#1}}
 \newcommand\includelua[1]{\ctx@include{lua}{#1}}
 \newcommand\includeyaml[1]{\ctx@ensureyaml\ctx@include{yaml}{#1}}
+\newcommand\includemake[1]{\ctx@include{make}{#1}}
 %    \end{macrocode}
 % \iffalse
 %</package>
 % \fi
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -475,7 +496,7 @@ done
 \def\ctxstrip#1.#2\ctxstop{#1}
 \def\ctxinclude#1#2{%
   \edef\ctxin{#2}%
-  \edef\ctxbase{\ctxstrip#2\ctxstop}%
+  \edef\ctxbase{\ctxstrip#2.\ctxstop}%
   \edef\ctxout{\ctxbase.c2t.tex}%
   \expandafter\ifx\csname directlua\endcsname\relax
     \expandafter\ifx\csname pdfshellescape\endcsname\relax\else
@@ -503,15 +524,18 @@ done
 % \begin{macro}{\includebash}
 % \begin{macro}{\includelua}
 % \begin{macro}{\includeyaml}
+% \begin{macro}{\includemake}
 % The public entry points.
 %    \begin{macrocode}
 \def\includebash{\ctxinclude{bash}}
 \def\includelua{\ctxinclude{lua}}
 \def\includeyaml{\ctxinclude{yaml}}
+\def\includemake{\ctxinclude{make}}
 %    \end{macrocode}
 % \iffalse
 %</plain>
 % \fi
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

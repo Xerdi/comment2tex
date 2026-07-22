@@ -65,8 +65,8 @@ OPTS="$NS -halt-on-error"
 ## ships rather than a stale build.  A wrapper that will not build is a hard error,
 ## not a skip.
 log "workspace: $WORK"
-cp "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" \
-   "$SRC/comment2tex.ins" "$WORK"/ || {
+cp "$SRC/comment2tex.lua" "$SRC/comment2tex.dtx" "$SRC/comment2tex.ins" \
+   "$SRC/Makefile" "$SRC/comment2tex-test.sh" "$WORK"/ || {
   log "FATAL: cannot find comment2tex sources next to this script"; exit 2; }
 
 cd "$WORK" || exit 2
@@ -209,6 +209,8 @@ if have texlua; then
        | grep -q '\\begin{lstlisting}\[language={\[5.3\]Lua}' &&
      $C2T --style yaml demo-yaml.yml \
        | grep -q '\\begin{lstlisting}\[language=yaml' &&
+     $C2T --style make Makefile \
+       | grep -q '\\begin{lstlisting}\[language=make' &&
      $C2T --style yaml --wrapper plain demo-yaml.yml \
        | grep -q '\\ctxlisting' &&
      $C2T --style yaml --wrapper plain demo-yaml.yml \

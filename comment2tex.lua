@@ -29,6 +29,7 @@ M.styles = {
   bash = { comment = "##",  language = "bash" },
   lua  = { comment = "---", language = "{[5.3]Lua}" },
   yaml = { comment = "##",  language = "yaml" },
+  make = { comment = "##",  language = "make" },
 }
 
 --- The \texttt{lstlisting} wrapper targets \LaTeX\ (the \texttt{listings} package); the
@@ -79,7 +80,7 @@ function M.resolve(o)
   local style = M.styles[o.style]
   if not style then
     error("comment2tex: unknown style: " .. tostring(o.style)
-      .. " (expected bash, lua or yaml)")
+      .. " (expected bash, lua, yaml or make)")
   end
   local wrapper = M.wrappers[o.wrapper]
   if not wrapper then
@@ -95,11 +96,35 @@ function M.resolve(o)
 end
 
 --- \subsubsection{Conversion}
+--- \texttt{expand\_tabs} turns tabs into spaces to the next \texttt{M.tabwidth} stop, so
+--- a listing shows clean indentation instead of a raw tab (which a monospace font would
+--- typeset as a missing-glyph box).  It is applied only when \emph{weaving} code lines;
+--- \cs{tangle} leaves the source byte-for-byte, so a \texttt{Makefile}'s recipe tabs
+--- survive.
+M.tabwidth = 4
+
+local function expand_tabs(line, w)
+  if not line:find("\t", 1, true) then return line end
+  local out, col = {}, 0
+  for i = 1, #line do
+    local c = line:sub(i, i)
+    if c == "\t" then
+      local n = w - (col % w)
+      out[#out + 1] = string.rep(" ", n)
+      col = col + n
+    else
+      out[#out + 1] = c
+      col = col + 1
+    end
+  end
+  return table.concat(out)
+end
+
 --- The source is walked line by line.  A line that starts with the comment prefix is
 --- documentation: any open code block is closed and the line is emitted with the prefix
 --- (and one optional following space) stripped.  Anything else is code: a block is
---- opened if one is not already running and the line is emitted unchanged.  A final
---- close guarantees the listing is shut even when the file ends inside code.
+--- opened if one is not already running and the line is emitted with tabs expanded.  A
+--- final close guarantees the listing is shut even when the file ends inside code.
 function M.convert(o, lines, emit)
   local prefix = o.comment
   local plen = #prefix
@@ -137,7 +162,7 @@ function M.convert(o, lines, emit)
       emit((line:sub(plen + 1):gsub("^ ", "")))
     else
       open_code()
-      emit(line)
+      emit(expand_tabs(line, M.tabwidth))
     end
   end
   close_code()
@@ -226,7 +251,7 @@ Weave a source with embedded LaTeX doc-comments into LaTeX, or with
 --tangle strip the doc-comments back to the runnable source.
 
 Options:
-  -s, --style NAME       bash (##), lua (---) or yaml (##) [default: bash]
+  -s, --style NAME       bash, yaml, make (##) or lua (---) [default: bash]
   -w, --wrapper NAME     lstlisting or plain [default: lstlisting]
   -c, --comment PREFIX   doc-comment prefix marking a doc line
   -l, --language LANG    listing language for code blocks

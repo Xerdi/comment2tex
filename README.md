@@ -66,9 +66,10 @@ package:
 
 - `comment2tex.sty`, `comment2tex.tex` — generated from `comment2tex.ins`; CTAN
   and TeX Live regenerate them, so shipping them would ship derived files.
-- `comment2tex-test.sh` — the test suite. The manual's *Testing* section
-  `\includebash`es it only when present (guarded by `\IfFileExists`), so the
-  bundled sources still build the PDF without it.
+- `Makefile`, `comment2tex-test.sh` — the build system and test suite. The
+  manual's *The build* and *Testing* sections `\includemake`/`\includebash` them
+  only when present (guarded by `\IfFileExists`), so the bundled sources still
+  build the PDF without them.
 - Intermediate TeX output (`*.aux`, `*.log`, `*.c2t.tex`, …) and version-control
   files.
 
