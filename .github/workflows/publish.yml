@@ -1,0 +1,60 @@
+## \subsection{The publish workflow}
+## \texttt{publish.yml} runs when a tag is pushed.  It rebuilds the CTAN bundle in
+## the container and opens a \emph{draft} GitHub release with the zip and the PDF
+## attached, for the maintainer to review, correct and publish --- or discard.  A
+## release is never made public automatically.
+name: publish
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          path: comment2tex
+          fetch-tags: true
+          fetch-depth: 0
+      - name: Build the CTAN bundle
+        uses: addnab/docker-run-action@v3
+        with:
+          image: maclotsen/texlive:with-gf
+          shell: bash
+          options: --rm -i -v ${{ github.workspace }}:/build
+          run: |
+            git config --global --add safe.directory /build/comment2tex
+            make -C comment2tex package
+      - name: Create the draft release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref_name }}
+          draft: true
+          body: |
+            Release for version ${{ github.ref_name }}
+      - name: 'Upload release asset: CTAN bundle'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/comment2tex/comment2tex.zip
+          asset_name: comment2tex-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
+      - name: 'Upload release asset: manual'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/comment2tex/comment2tex.pdf
+          asset_name: comment2tex-${{ github.ref_name }}.pdf
+          asset_content_type: application/pdf

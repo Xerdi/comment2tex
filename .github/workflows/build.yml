@@ -1,0 +1,42 @@
+## \subsection{The build workflow}
+## \texttt{build.yml} runs on every push to the default branch and on every opened
+## or synchronised pull request.  It runs the cross-engine test suite and typesets
+## the manual inside the \textsf{Xerdi} \TeX\ Live container, then archives the PDF so
+## a failed run can still be inspected.  Unlike the other \textsf{XDP} packages it
+## fetches no shared \texttt{texmf} tree --- a stock \TeX\ Live is enough.
+name: build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    types: [opened, synchronize]
+
+## One job on \texttt{ubuntu-latest}: check out the sources, run \texttt{make test
+## doc} in the container, and upload the manual --- \texttt{if: always()}, so the PDF
+## survives even when a step failed.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          path: comment2tex
+          fetch-tags: true
+          fetch-depth: 0
+      - name: Test and build in the TeX Live container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: maclotsen/texlive:with-gf
+          shell: bash
+          options: --rm -i -v ${{ github.workspace }}:/build
+          run: |
+            git config --global --add safe.directory /build/comment2tex
+            make -C comment2tex test doc
+      - name: Archive the manual
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: comment2tex
+          path: ${{ github.workspace }}/comment2tex/comment2tex.pdf
