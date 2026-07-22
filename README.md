@@ -1,55 +1,88 @@
 # comment2tex
 
-Include annotated source files as LaTeX listings.
+Include annotated source files as LaTeX listings — a Lua converter plus LaTeX and
+plain-TeX wrappers (`\includebash`, `\includelua`, `\includeyaml`) that typeset a
+Bash, Lua or YAML source whose doc-comments become prose and whose code becomes a
+listing.
 
-`comment2tex` typesets a source file that carries its documentation in special
-comments: the comments become ordinary LaTeX, the rest becomes a listing. A line
-beginning with a chosen *doc-comment* prefix is prose (`##` for Bash, `---` for
-Lua, `##` for YAML); everything else is code. Because `##` is itself a YAML
-comment, an annotated YAML file stays valid YAML, so it can be typeset as-is
-without keeping a stripped copy.
+> **This README is for package maintainers, developers, and CTAN reviewers**, not
+> for LaTeX end users. End-user documentation is the typeset manual
+> `comment2tex.pdf`, built from `comment2tex.dtx`.
 
-The bundle ships a Lua converter (`comment2tex.lua`) and two TeX wrappers — one
-for LaTeX/LuaLaTeX and one for plain TeX — both providing `\includebash`,
-`\includelua` and `\includeyaml`. Under LuaLaTeX the conversion runs in process;
-under pdfLaTeX it uses `--shell-escape` or a separate pre-build run.
+## Overview
 
-Under LaTeX the include macros render in one of two modes, switchable anywhere
-in the document. The default is a built-in **numbered verbatim** — no
-dependency, no setup. `\ctxuselistings` switches subsequent includes to
-`listings` output (syntax highlighting, line breaking, the full `\lstset`
-vocabulary); `\ctxuseverbatim` switches back. Requesting `listings` without
-having loaded it warns once and stays on verbatim. Like ltxdoc's `macrocode`,
-the verbatim renderer does not break long lines.
+A line that begins with a style's doc-comment prefix (`##` for Bash and YAML,
+`---` for Lua) is documentation; every other line is code. The converter,
+`comment2tex.lua`, runs both as a `texlua` command-line program and — under
+LuaLaTeX — in process via `\directlua`. Under LaTeX the include macros default to
+a built-in numbered verbatim (no dependency, no setup); `\ctxuselistings` opts
+subsequent includes into `listings` output and `\ctxuseverbatim` switches back.
 
-In `listings` mode the package applies a plain default `\lstset` for you (only if
-`listings` is loaded). `listings` provides the `bash` and `Lua` languages but
-ships no `yaml` one; `\includeyaml` handles that by installing an empty `yaml`
-language if the document has not defined its own (so `language=yaml` resolves to
-the default style rather than faulting). The plain TeX wrapper always renders
-verbatim, since `listings` is LaTeX-only.
+## Repository layout
 
-## Installation
+| File | Role |
+|---|---|
+| `comment2tex.dtx` | Documented source: prose plus the `.sty`/`.tex` wrapper code. |
+| `comment2tex.ins` | docstrip driver; extracts the wrappers. |
+| `comment2tex.lua` | The converter (hand-written; its `---` lines are Lua comments). |
+| `comment2tex-test.sh` | Cross-engine test suite (development only). |
+| `Makefile` | Build, test and packaging targets (`make help`). |
+| `comment2tex.sty`, `comment2tex.tex` | **Generated** from the `.ins` (git-ignored). |
+| `comment2tex.pdf` | **Generated** manual from the `.dtx`. |
 
-```
-tex comment2tex.ins
-```
+## Building and testing
 
-This extracts `comment2tex.sty` and `comment2tex.tex`. Move those, together with
-`comment2tex.lua`, into a directory searched by TeX.
-
-## Documentation
-
-```
-lualatex comment2tex.dtx
+```sh
+make wrappers   # docstrip: comment2tex.{sty,tex} from the .dtx + .ins
+make doc        # typeset comment2tex.pdf (LuaLaTeX; make doc WATCH=1 for --pvc)
+make test       # run comment2tex-test.sh across every installed TeX engine
+make package    # build the CTAN upload zip (see below)
+make clean
 ```
 
-LuaLaTeX is required so the `\includelua` demonstration converts in process.
+Building the manual needs LuaLaTeX, because the `\includelua`/`\includebash`
+demonstrations convert in process. The suite exercises texlua, LuaLaTeX, pdfLaTeX
+(shell-escape and separate run) and plain luatex/pdftex; missing engines are
+skipped, not failed.
+
+## CTAN submission
+
+`make package` produces `comment2tex.zip` with everything under a single
+`comment2tex/` directory. Following CTAN's upload guide
+(<https://ctan.org/help/upload-pkg>), the bundle contains **only sources and the
+built documentation** — no file that can be regenerated from another in the
+package:
+
+**Included**
+
+- `comment2tex.dtx`, `comment2tex.ins` — documented source and docstrip driver.
+- `comment2tex.lua` — the converter, shipped as its **annotated source**. Its
+  `---` doc-comment lines are ordinary Lua comments, so the file runs unmodified;
+  a tangled/stripped copy is deliberately **not** shipped, because a stripped file
+  would be a derived artefact, which the upload guide says must not be included.
+- `README.md`, `comment2tex.pdf`.
+
+**Excluded** (derived or development artefacts)
+
+- `comment2tex.sty`, `comment2tex.tex` — generated from `comment2tex.ins`; CTAN
+  and TeX Live regenerate them, so shipping them would ship derived files.
+- `comment2tex-test.sh` — the test suite. The manual's *Testing* section
+  `\includebash`es it only when present (guarded by `\IfFileExists`), so the
+  bundled sources still build the PDF without it.
+- Intermediate TeX output (`*.aux`, `*.log`, `*.c2t.tex`, …) and version-control
+  files.
+
+Review the bundle by hand first. To upload, open the package's CTAN page and use
+the upload button — it pre-fills the suggested directory — attaching
+`comment2tex.zip`.
+
+## Versioning
+
+The version and date live in `comment2tex.dtx` (`\ProvidesPackage`). Bump them,
+commit, then tag the release so the two agree.
 
 ## License
 
-Copyright (C) 2026 Erik Nijenhuis.
-
-This work may be distributed and/or modified under the conditions of the LaTeX
-Project Public License, either version 1.3c of this license or (at your option)
-any later version.
+Copyright © 2026 Erik Nijenhuis. This work may be distributed and/or modified
+under the conditions of the LaTeX Project Public License (LPPL), version 1.3c or,
+at your option, any later version.

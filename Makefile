@@ -27,14 +27,16 @@ TESTSH   = comment2tex-test.sh
 LUA_SRC  = comment2tex.lua
 FRAGS    = $(LUA_SRC:.lua=.c2t.tex)
 
-# Files shipped in the CTAN upload: hand-written sources and the built docs.  The
-# wrappers (comment2tex.sty, comment2tex.tex) are generated from the .dtx via the
-# .ins, so CTAN regenerates them and they are not shipped.  comment2tex.lua is
-# shipped separately by the package rule, stripped of its doc-comments (see
-# below), so it is not listed here either.  The test suite is a development
-# artifact, not shipped; the manual's Testing section \includebash's it only when
-# present (guarded by \IfFileExists), so a rebuild from the CTAN sources still works.
-DISTFILES = $(DTX) $(INS) $(README) $(DOC)
+# Files shipped in the CTAN upload: the hand-written sources (.dtx, .ins, and the
+# converter comment2tex.lua) plus the README and the built PDF.  Per CTAN's upload
+# guide no generated/derived file is shipped: comment2tex.sty/.tex are regenerated
+# from the .ins by CTAN and TeX Live, and comment2tex.lua ships as its annotated
+# source (its "---" lines are ordinary Lua comments, so it runs unmodified) rather
+# than a tangled copy, which would be a derived file.  The test suite is a
+# development artefact and is not shipped either; the manual's Testing section
+# \includebash's it only when present (guarded by \IfFileExists), so the bundled
+# sources still build the PDF without it.
+DISTFILES = $(DTX) $(INS) $(README) $(LUA_SRC) $(DOC)
 
 .PHONY: all wrappers doc test frags package clean help
 
@@ -63,15 +65,13 @@ frags: $(FRAGS)
 	$(C2T) --style lua -o $@ $<
 
 ## package: build a CTAN-ready zip (sources + PDF under a comment2tex/ dir).
-##          The shipped comment2tex.lua has its "---" doc-comments removed with
-##          `comment2tex --tangle` (style-aware, no sed dependency), so its line
-##          numbers match the listing numbers in the documentation.
+##          Only sources and the built PDF go in -- no generated/derived files
+##          (see the DISTFILES note and the README's CTAN submission section).
 package: $(NAME).zip
-$(NAME).zip: $(DISTFILES) $(LUA_SRC)
+$(NAME).zip: $(DISTFILES)
 	$(RM) -r $(NAME) $(NAME).zip
 	mkdir $(NAME)
 	cp $(DISTFILES) $(NAME)/
-	$(C2T) --style lua --tangle -o $(NAME)/$(LUA_SRC) $(LUA_SRC)
 	zip -r $(NAME).zip $(NAME)
 	$(RM) -r $(NAME)
 
